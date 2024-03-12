@@ -1,11 +1,7 @@
-#ifndef UTILS_C
-#define UTILS_C
-
 #include <ctype.h>
-#include <stdint.h>
+#include "utils.h"
 
-// MurmurHash3 implementation
-uint32_t murmurHash(const void* key, int len, uint32_t seed) {
+uint32_t murmur_hash(const void* key, int len, uint32_t seed) {
 	const uint32_t m = 0x5bd1e995;
 	const int r = 24;
 
@@ -44,9 +40,6 @@ uint32_t murmurHash(const void* key, int len, uint32_t seed) {
 	return h;
 }
 
-/// \brief Process string before computing shingle.
-/// The function processes the string by converting it to lowercase and removing all non-alphanumeric characters.
-/// \param str String to process
 void str_tolower_trim_nonalphanum(char* str) {
 	// Used variables
 	char* write_str = str;
@@ -68,5 +61,3 @@ void str_tolower_trim_nonalphanum(char* str) {
 	// Null-terminate the string
 	*write_str = '\0';
 }
-
-#endif

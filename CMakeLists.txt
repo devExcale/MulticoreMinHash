@@ -8,7 +8,7 @@ project(MulticoreMinHash
 set(CMAKE_C_STANDARD 11)
 
 # Define the executable
-add_executable(MulticoreMinHash main.c)
+add_executable(MulticoreMinHash seq_main.c)
 
 # Find and link with MPI libraries
 find_package(MPI REQUIRED)
