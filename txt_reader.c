@@ -1,6 +1,3 @@
-#ifndef DOCREADER_C
-#define DOCREADER_C
-
 #include <stdlib.h>
 #include <string.h>
 #include "txt_reader.h"
@@ -30,7 +27,7 @@ char *read_word_from_file(FILE *file) {
 	return ret;
 }
 
-char *read_shingle_from_file(const FILE *file, const unsigned int shingle_size, char **prev_words) {
+char *read_shingle_from_file(FILE *file, const unsigned int shingle_size, char **prev_words) {
 
 	// Discard oldest word (if NULL free does no-op)
 	free(prev_words[0]);
@@ -69,5 +66,3 @@ char *read_shingle_from_file(const FILE *file, const unsigned int shingle_size, 
 
 	return shingle;
 }
-
-#endif

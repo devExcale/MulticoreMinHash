@@ -2,7 +2,8 @@
 #define MULTICOREMINHASH_SEQ_MAIN_H
 
 #include <stdio.h>
-#include "txt_reader.c"
+#include <stdint.h>
+#include "txt_reader.h"
 
 int main(const int argc, const char *argv[]);
 
@@ -31,6 +32,16 @@ float array_similarity(const uint32_t *hashes_arr1, const int hashes_size1,
 					   const uint32_t *hashes_arr2, const int hashes_size2);
 
 /**
+ * Computes the similarity of two signatures.
+ *
+ * @param signature1 Address of the first signature
+ * @param signature2 Address of the second signature
+ * @param signature_size Size of the signatures
+ * @return The similarity value
+ */
+float signature_similarity(const uint32_t *signature1, const uint32_t *signature2, const int signature_size);
+
+/**
  * Read all shingles from a file, compute their hashes and return the hash with minimum value.
  * 
  * @param filename Absolute path of the file to read
@@ -46,6 +57,13 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
  * @return exit code
  */
 int main_min_hash();
+
+/**
+ * Performs the min_hash algorithm on multiple files with banding.
+ *
+ * @return exit code
+ */
+int main_min_hash_band();
 
 /**
  * Print all shingles of a file.

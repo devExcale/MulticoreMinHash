@@ -24,6 +24,6 @@ char *read_word_from_file(FILE *file);
  * @param prev_words An array of words (strings) previously read, handled by the function
  * @return 
  */
-char *read_shingle_from_file(const FILE *file, const unsigned int shingle_size, char **prev_words);
+char *read_shingle_from_file(FILE *file, const unsigned int shingle_size, char **prev_words);
 
 #endif //MULTICOREMINHASH_TEXT_READER_H
