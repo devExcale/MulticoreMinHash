@@ -7,6 +7,12 @@
 
 int main(const int argc, const char *argv[]);
 
+// TODO: documentation
+struct Arguments default_arguments();
+
+// TODO: documentation
+void print_arguments(struct Arguments args);
+
 /**
  * Reads all shingles from a txt file, and computes their hashes. <br>
  * Note: the array must be freed by the caller.
@@ -55,18 +61,11 @@ bool is_candidate_pair(const uint32_t *signature_band1, const uint32_t *signatur
 uint32_t min_hash_shingle(const char *filename, const int shingle_size, const int seed);
 
 /**
- * Performs the min_hash algorithm on two files.
- * 
- * @return exit code
- */
-int main_min_hash();
-
-/**
  * Performs the min_hash algorithm on multiple files with banding.
  *
  * @return exit code
  */
-int main_min_hash_band();
+int main_min_hash(struct Arguments args);
 
 /**
  * Print all shingles of a file.

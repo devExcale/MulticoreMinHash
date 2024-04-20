@@ -6,93 +6,121 @@
 #include "main.h"
 #include "utils.h"
 
-#define SHINGLE_SIZE 2
-#define FILENAME1 "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles\\97.txt"
-#define FILENAME2 "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles\\100.txt"
+struct Arguments {
+	// Directory where to pull the documents from
+	char *directory;
+	// How many words in a shingle
+	unsigned int shingle_size;
+	// Number of hashes to compute for a document
+	unsigned int signature_size;
+	// Number of documents to process
+	unsigned int n_docs;
+	// Number of rows in each band
+	unsigned int n_band_rows;
+	// Hash function seed
+	int seed;
+	// Whether to print verbose information
+	bool verbose;
+	// After how many steps to print verbose information
+	unsigned int verbose_step;
+};
 
+// Args proto: <doc_directory> <>
 int main(const int argc, const char *argv[]) {
 
-	printf("Shingle size: %d\n", SHINGLE_SIZE);
+	// Get arguments
+	struct Arguments args = default_arguments();
 
-//    return print_shingles(FILENAME1, SHINGLE_SIZE);
+	// Temp args
+	args.directory = "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles";
+	args.n_docs = 400;
+	args.shingle_size = 2;
+	args.signature_size = 200;
 
-	main_array_similarity(FILENAME1, FILENAME2, SHINGLE_SIZE);
+	if (args.verbose)
+		print_arguments(args);
 
-//	main_min_hash();
-
-	main_min_hash_band();
-
-	return 0;
-}
-
-int main_min_hash() {
-
-	const char *filename1 = FILENAME1;
-	const char *filename2 = FILENAME2;
-
-	const int N_HASHES = 200;
-
-	int shingle_size = SHINGLE_SIZE;
-	uint32_t hashes1[N_HASHES], hashes2[N_HASHES];
-
-	for (int i = 0; i < N_HASHES; ++i) {
-		hashes1[i] = min_hash_shingle(filename1, shingle_size, i * 17);
-		hashes2[i] = min_hash_shingle(filename2, shingle_size, i * 17);
-	}
-
-	float similarity = array_similarity(hashes1, N_HASHES, hashes2, N_HASHES);
-	printf("Similarity MinHash: %.2f%%\n", 100.f * similarity);
+	main_min_hash(args);
 
 	return 0;
 }
 
-int main_min_hash_band() {
+struct Arguments default_arguments() {
 
-	const char *file_directory = "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles";
-	const int N_HASHES = 100;
-	const int shingle_size = SHINGLE_SIZE;
-	const int N_DOCS = 1989;
+	struct Arguments args;
 
-	uint32_t signature_matrix[N_DOCS][N_HASHES];
-	memset(signature_matrix, 0, N_DOCS * N_HASHES * sizeof(uint32_t)); // Void signature matrix
+	args.directory = NULL;
+	args.shingle_size = 3;
+	args.signature_size = 100;
+	args.n_docs = 0;
+	args.n_band_rows = 4;
+	args.seed = 13;
+	args.verbose = true;
+	args.verbose_step = 25;
 
-	const int N_BANDS = 25;
-	const int N_ROWS_BAND = 4;
-	uint32_t bands_matrix[N_DOCS][N_BANDS];
+	return args;
+}
+
+void print_arguments(struct Arguments args) {
+	printf("-----\n");
+	printf("[Using arguments]\n");
+	printf("- Directory: \"%s\"\n", args.directory);
+	printf("- Shingle size: %u\n", args.shingle_size);
+	printf("- Signature size: %u\n", args.signature_size);
+	printf("- Number of documents: %u\n", args.n_docs);
+	printf("- Number of rows in bands: %u\n", args.n_band_rows);
+	printf("- Seed: %d\n", args.seed);
+	printf("- Verbose: %s\n", args.verbose ? "true" : "false");
+	printf("- Verbose step: %u\n", args.verbose_step);
+	printf("-----\n");
+}
+
+int main_min_hash(struct Arguments args) {
+
+	const int n_hashes = args.signature_size;
+	const int shingle_size = args.shingle_size;
+	const int n_docs = args.n_docs;
+
+	uint32_t signature_matrix[n_docs][n_hashes];
+	memset(signature_matrix, 0, n_docs * n_hashes * sizeof(uint32_t)); // Void signature matrix
+
+	const int n_band_rows = args.n_band_rows;
+	const int n_bands = n_hashes / n_band_rows;
+	uint32_t bands_matrix[n_docs][n_bands];
+	memset(bands_matrix, 0, n_docs * n_bands * sizeof(uint32_t)); // Void bands matrix
 
 	const int offset = 1;
 
 	// Compute signature matrix
-	for (int i = 0; i < N_DOCS; ++i) {
+	for (int i = 0; i < n_docs; ++i) {
 
-		if (i % 100 == 0 || i == N_DOCS - 1)
+		if (args.verbose && (i % args.verbose_step == 0 || i == n_docs - 1))
 			printf("Computing signature for doc %d\n", i + offset);
 
-		// Compute the path of the article file (they are numbered)
-		char *article_filepath = (char *) malloc((strlen(file_directory) + 10) * sizeof(char));
-		sprintf(article_filepath, "%s\\%d.txt", file_directory, i + offset);
+		// Compute the path of the document file (they are numbered)
+		char *doc_filepath = (char *) malloc((strlen(args.directory) + 10) * sizeof(char));
+		sprintf(doc_filepath, "%s\\%d.txt", args.directory, i + offset);
 
 		// Compute signature hashes
-		for (int j = 0; j < N_HASHES; ++j)
-			signature_matrix[i][j] = min_hash_shingle(article_filepath, shingle_size, j * 17);
-
+		for (int j = 0; j < n_hashes; ++j)
+			signature_matrix[i][j] = min_hash_shingle(doc_filepath, shingle_size, j * args.seed);
 
 		// Free file path memory
-		free(article_filepath);
+		free(doc_filepath);
 	}
 
 	// Compute bands hashes
-	for (int i = 0; i < N_DOCS; ++i) {
+	for (int i = 0; i < n_docs; ++i) {
 
-		if (i % 100 == 0 || i == N_DOCS - 1)
+		if (args.verbose && (i % args.verbose_step == 0 || i == n_docs - 1))
 			printf("Computing bands for doc %d\n", i + offset);
 
-		for (int j = 0; j < N_BANDS; ++j) {
+		for (int j = 0; j < n_bands; ++j) {
 
 			uint32_t band_hash = 0;
 
-			for (int k = 0; k < N_ROWS_BAND; ++k)
-				band_hash ^= signature_matrix[i][j * N_ROWS_BAND + k];
+			for (int k = 0; k < n_band_rows; ++k)
+				band_hash ^= signature_matrix[i][j * n_band_rows + k];
 
 			bands_matrix[i][j] = band_hash;
 		}
@@ -101,15 +129,15 @@ int main_min_hash_band() {
 	printf("Starting comparison...\n");
 
 	// Compare all pairs of documents
-	for (int i = 0; i < N_DOCS - 1; ++i)
-		for (int j = i + 1; j < N_DOCS; ++j) {
+	for (int i = 0; i < n_docs - 1; ++i)
+		for (int j = i + 1; j < n_docs; ++j) {
 
-			if (!is_candidate_pair(bands_matrix[i], bands_matrix[j], N_BANDS))
+			if (!is_candidate_pair(bands_matrix[i], bands_matrix[j], n_bands))
 				continue;
 
 			printf("[Docs %d - %d] Found Candidate Pair\n", i + offset, j + offset);
 
-			float similarity = signature_similarity(signature_matrix[i], signature_matrix[j], N_HASHES);
+			float similarity = signature_similarity(signature_matrix[i], signature_matrix[j], n_hashes);
 			printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);
 
 		}
