@@ -29,13 +29,7 @@ struct Arguments {
 int main(const int argc, const char *argv[]) {
 
 	// Get arguments
-	struct Arguments args = default_arguments();
-
-	// Temp args
-	args.directory = "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles";
-	args.n_docs = 400;
-	args.shingle_size = 2;
-	args.signature_size = 200;
+	struct Arguments args = input_arguments(argc, argv);
 
 	if (args.verbose)
 		print_arguments(args);
@@ -43,6 +37,66 @@ int main(const int argc, const char *argv[]) {
 	main_min_hash(args);
 
 	return 0;
+	// minhash --shingle 3 --signature 200 <dir>
+	// [minhash, --shingle, 3, --signature, 200, <dir>]
+}
+
+struct Arguments input_arguments(const int argc, const char *argv[]) {
+
+	struct Arguments args = default_arguments();
+	const char *help_msg = "Usage: %s "
+						   "[--shingle <shingle_size>] "
+						   "[--signature <signature_size>] "
+						   "[--docs <n_docs>] "
+						   "[--bandrows <n_band_rows>] "
+						   "[--seed <seed>] "
+						   "[--verbose] "
+						   "[--verstep <verbose_step>] "
+						   "<doc_directory>\n";
+
+	// Check if there are enough arguments
+	if (argc < 2) {
+		printf(help_msg, argv[0]);
+		exit(1);
+	}
+
+	int i;
+	for (i = 1; i < argc; i++)
+
+		if (strcmp(argv[i], "--shingle") == 0)
+			args.shingle_size = (unsigned int) atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--signature") == 0)
+			args.signature_size = (unsigned int) atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--docs") == 0)
+			args.n_docs = (unsigned int) atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--bandrows") == 0)
+			args.n_band_rows = (unsigned int) atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--seed") == 0)
+			args.seed = atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--verbose") == 0)
+			args.verbose = true;
+
+		else if (strcmp(argv[i], "--verstep") == 0)
+			args.verbose_step = (unsigned int) atoi(argv[++i]);
+
+		else {
+			args.directory = (char *) argv[i];
+			break;
+		}
+
+
+	// Other arguments after directory
+	if (!args.directory) {
+		printf(help_msg, argv[0]);
+		exit(1);
+	}
+
+	return args;
 }
 
 struct Arguments default_arguments() {
@@ -55,7 +109,7 @@ struct Arguments default_arguments() {
 	args.n_docs = 0;
 	args.n_band_rows = 4;
 	args.seed = 13;
-	args.verbose = true;
+	args.verbose = false;
 	args.verbose_step = 25;
 
 	return args;
@@ -134,8 +188,6 @@ int main_min_hash(struct Arguments args) {
 
 			if (!is_candidate_pair(bands_matrix[i], bands_matrix[j], n_bands))
 				continue;
-
-			printf("[Docs %d - %d] Found Candidate Pair\n", i + offset, j + offset);
 
 			float similarity = signature_similarity(signature_matrix[i], signature_matrix[j], n_hashes);
 			printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);

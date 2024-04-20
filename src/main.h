@@ -8,6 +8,9 @@
 int main(const int argc, const char *argv[]);
 
 // TODO: documentation
+struct Arguments input_arguments(const int argc, const char *argv[]);
+
+// TODO: documentation
 struct Arguments default_arguments();
 
 // TODO: documentation
