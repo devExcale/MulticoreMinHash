@@ -61,3 +61,36 @@ void str_tolower_trim_nonalphanum(char* str) {
 	// Null-terminate the string
 	*write_str = '\0';
 }
+
+float array_similarity(const uint32_t *hashes_arr1, const int hashes_size1,
+					   const uint32_t *hashes_arr2, const int hashes_size2) {
+	int common = 0;
+
+	for (int i = 0; i < hashes_size1; i++)
+		for (int j = 0; j < hashes_size2; j++)
+			if (hashes_arr1[i] == hashes_arr2[j]) {
+				common++;
+				break;
+			}
+
+	return (float) common / (float) (hashes_size1 + hashes_size2 - common);
+}
+
+float signature_similarity(const uint32_t *signature1, const uint32_t *signature2, const int signature_size) {
+	int common = 0;
+
+	for (int i = 0; i < signature_size; i++)
+		if (signature1[i] == signature2[i])
+			common++;
+
+	return (float) common / (float) signature_size;
+}
+
+bool is_candidate_pair(const uint32_t *band1, const uint32_t *band2, const int n_bands) {
+
+	for (int i = 0; i < n_bands; i++)
+		if (band1[i] == band2[i])
+			return true;
+
+	return false;
+}

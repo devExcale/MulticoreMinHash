@@ -25,7 +25,6 @@ struct Arguments {
 	unsigned int verbose_step;
 };
 
-// Args proto: <doc_directory> <>
 int main(const int argc, const char *argv[]) {
 
 	// Get arguments
@@ -37,8 +36,6 @@ int main(const int argc, const char *argv[]) {
 	main_min_hash(args);
 
 	return 0;
-	// minhash --shingle 3 --signature 200 <dir>
-	// [minhash, --shingle, 3, --signature, 200, <dir>]
 }
 
 struct Arguments input_arguments(const int argc, const char *argv[]) {
@@ -89,10 +86,15 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 			break;
 		}
 
-
 	// Other arguments after directory
 	if (!args.directory) {
 		printf(help_msg, argv[0]);
+		exit(1);
+	}
+
+	// Check number of documents and rows in bands
+	if (args.n_docs % args.n_band_rows != 0) {
+		printf("The number of rows in a band must be a divisor of the number of documents.\n");
 		exit(1);
 	}
 
@@ -197,89 +199,6 @@ int main_min_hash(struct Arguments args) {
 	return 0;
 }
 
-int print_shingles(const char *filename, const int shingle_size) {
-
-	// Open file
-	FILE *file = fopen(filename, "r");
-
-	char *prev_words[shingle_size];
-	char *shingle;
-
-	// Set to null all previous words
-	for (int i = 0; i < shingle_size; i++)
-		prev_words[i] = NULL;
-
-	// While shingles are read from file
-	while ((shingle = read_shingle_from_file(file, shingle_size, prev_words))) {
-
-		// Print shingle
-		printf("%s\n", shingle);
-
-		// Free shingle
-		free(shingle);
-	}
-
-	return 0;
-}
-
-int main_array_similarity(const char *filename1, const char *filename2, const int shingle_size) {
-
-	int hashes_size1 = 0, hashes_size2 = 0;
-	uint32_t *hashes_arr1, *hashes_arr2;
-
-	all_shingles_to_hashes_from_txt(filename1, shingle_size, &hashes_arr1, &hashes_size1);
-	all_shingles_to_hashes_from_txt(filename2, shingle_size, &hashes_arr2, &hashes_size2);
-
-	printf("Similarity TrueHash: %.2f%%\n",
-		   100.f * array_similarity(hashes_arr1, hashes_size1, hashes_arr2, hashes_size2));
-
-	// Free memory
-	free(hashes_arr1);
-	free(hashes_arr2);
-
-	return 0;
-}
-
-void all_shingles_to_hashes_from_txt(const char *filename, const int shingle_size,
-									 uint32_t **pp_hashes_arr, int *p_hashes_size) {
-
-	// Open file
-	FILE *file = fopen(filename, "r");
-
-	char *prev_words[shingle_size];
-	char *shingle;
-
-	// Set initial number of shingles to 0 and create an array of 200 elements
-	*p_hashes_size = 0;
-	*pp_hashes_arr = malloc(8000 * sizeof(uint32_t));
-
-	// Set to null all previous words
-	for (int i = 0; i < shingle_size; i++)
-		prev_words[i] = NULL;
-
-	// While shingles are read from file
-	while ((shingle = read_shingle_from_file(file, shingle_size, prev_words))) {
-
-		// Compute and save hash
-		*((*pp_hashes_arr) + (*p_hashes_size)++) = murmur_hash(shingle, strlen(shingle), 0);
-
-		// Free shingle
-		free(shingle);
-	}
-
-	// Reallocate array to the exact number of hashes
-	*pp_hashes_arr = realloc(*pp_hashes_arr, *p_hashes_size * sizeof(uint32_t));
-
-	// Free previous words
-	for (int i = 0; i < shingle_size; i++)
-		free(prev_words[i]);
-
-	// Close file
-	fclose(file);
-
-	return;
-}
-
 uint32_t min_hash_shingle(const char *filename, const int shingle_size, const int seed) {
 
 	// Open file
@@ -313,37 +232,4 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
 	fclose(file);
 
 	return min_hash;
-}
-
-float array_similarity(const uint32_t *hashes_arr1, const int hashes_size1,
-					   const uint32_t *hashes_arr2, const int hashes_size2) {
-	int common = 0;
-
-	for (int i = 0; i < hashes_size1; i++)
-		for (int j = 0; j < hashes_size2; j++)
-			if (hashes_arr1[i] == hashes_arr2[j]) {
-				common++;
-				break;
-			}
-
-	return (float) common / (float) (hashes_size1 + hashes_size2 - common);
-}
-
-float signature_similarity(const uint32_t *signature1, const uint32_t *signature2, const int signature_size) {
-	int common = 0;
-
-	for (int i = 0; i < signature_size; i++)
-		if (signature1[i] == signature2[i])
-			common++;
-
-	return (float) common / (float) signature_size;
-}
-
-bool is_candidate_pair(const uint32_t *signature_band1, const uint32_t *signature_band2, const int n_bands) {
-
-	for (int i = 0; i < n_bands; i++)
-		if (signature_band1[i] == signature_band2[i])
-			return true;
-
-	return false;
 }
