@@ -9,9 +9,9 @@ set(CMAKE_C_STANDARD 11)
 
 # Define the executable
 add_executable(MulticoreMinHash
-        seq_main.c
-        txt_reader.c
-        utils.c
+        src/main.c
+        src/txt_reader.c
+        src/utils.c
 )
 
 # Find and link with MPI libraries

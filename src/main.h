@@ -1,5 +1,5 @@
-#ifndef MULTICOREMINHASH_SEQ_MAIN_H
-#define MULTICOREMINHASH_SEQ_MAIN_H
+#ifndef MULTICOREMINHASH_MAIN_H
+#define MULTICOREMINHASH_MAIN_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -40,6 +40,9 @@ float array_similarity(const uint32_t *hashes_arr1, const int hashes_size1,
  * @return The similarity value
  */
 float signature_similarity(const uint32_t *signature1, const uint32_t *signature2, const int signature_size);
+
+// TODO: documentation
+bool is_candidate_pair(const uint32_t *signature_band1, const uint32_t *signature_band2, const int n_bands);
 
 /**
  * Read all shingles from a file, compute their hashes and return the hash with minimum value.
@@ -86,4 +89,4 @@ int print_shingles(const char *filename, const int shingle_size);
  */
 int main_array_similarity(const char *filename1, const char *filename2, const int shingle_size);
 
-#endif //MULTICOREMINHASH_SEQ_MAIN_H
+#endif //MULTICOREMINHASH_MAIN_H

@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "txt_reader.h"
-#include "seq_main.h"
+#include "main.h"
 #include "utils.h"
 
-#define SHINGLE_SIZE 3
+#define SHINGLE_SIZE 2
 #define FILENAME1 "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles\\97.txt"
 #define FILENAME2 "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles\\100.txt"
 
@@ -48,21 +49,28 @@ int main_min_hash() {
 int main_min_hash_band() {
 
 	const char *file_directory = "C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\.datasets\\articles";
-	const int N_HASHES = 500;
+	const int N_HASHES = 100;
 	const int shingle_size = SHINGLE_SIZE;
-	const int N_DOCS = 10;
+	const int N_DOCS = 1989;
 
 	uint32_t signature_matrix[N_DOCS][N_HASHES];
 	memset(signature_matrix, 0, N_DOCS * N_HASHES * sizeof(uint32_t)); // Void signature matrix
 
+	const int N_BANDS = 25;
+	const int N_ROWS_BAND = 4;
+	uint32_t bands_matrix[N_DOCS][N_BANDS];
+
+	const int offset = 1;
+
 	// Compute signature matrix
 	for (int i = 0; i < N_DOCS; ++i) {
 
-		printf("Computing signature for doc %d\n", i + 95);
+		if (i % 100 == 0 || i == N_DOCS - 1)
+			printf("Computing signature for doc %d\n", i + offset);
 
 		// Compute the path of the article file (they are numbered)
 		char *article_filepath = (char *) malloc((strlen(file_directory) + 10) * sizeof(char));
-		sprintf(article_filepath, "%s\\%d.txt", file_directory, i + 95);
+		sprintf(article_filepath, "%s\\%d.txt", file_directory, i + offset);
 
 		// Compute signature hashes
 		for (int j = 0; j < N_HASHES; ++j)
@@ -73,14 +81,36 @@ int main_min_hash_band() {
 		free(article_filepath);
 	}
 
+	// Compute bands hashes
+	for (int i = 0; i < N_DOCS; ++i) {
+
+		if (i % 100 == 0 || i == N_DOCS - 1)
+			printf("Computing bands for doc %d\n", i + offset);
+
+		for (int j = 0; j < N_BANDS; ++j) {
+
+			uint32_t band_hash = 0;
+
+			for (int k = 0; k < N_ROWS_BAND; ++k)
+				band_hash ^= signature_matrix[i][j * N_ROWS_BAND + k];
+
+			bands_matrix[i][j] = band_hash;
+		}
+	}
+
 	printf("Starting comparison...\n");
 
 	// Compare all pairs of documents
 	for (int i = 0; i < N_DOCS - 1; ++i)
 		for (int j = i + 1; j < N_DOCS; ++j) {
 
+			if (!is_candidate_pair(bands_matrix[i], bands_matrix[j], N_BANDS))
+				continue;
+
+			printf("[Docs %d - %d] Found Candidate Pair\n", i + offset, j + offset);
+
 			float similarity = signature_similarity(signature_matrix[i], signature_matrix[j], N_HASHES);
-			printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + 95, j + 95, 100.f * similarity);
+			printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);
 
 		}
 
@@ -227,4 +257,13 @@ float signature_similarity(const uint32_t *signature1, const uint32_t *signature
 			common++;
 
 	return (float) common / (float) signature_size;
+}
+
+bool is_candidate_pair(const uint32_t *signature_band1, const uint32_t *signature_band2, const int n_bands) {
+
+	for (int i = 0; i < n_bands; i++)
+		if (signature_band1[i] == signature_band2[i])
+			return true;
+
+	return false;
 }
