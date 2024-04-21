@@ -19,10 +19,10 @@ struct Arguments {
 	unsigned int n_band_rows;
 	// Hash function seed
 	int seed;
-	// Whether to print verbose information
-	bool verbose;
 	// After how many steps to print verbose information
-	unsigned int verbose_step;
+	unsigned int verbose;
+	// Minimum similarity threshold after which to print the score
+	float threshold;
 };
 
 int main(const int argc, const char *argv[]) {
@@ -47,9 +47,9 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 						   "[--docs <n_docs>] "
 						   "[--bandrows <n_band_rows>] "
 						   "[--seed <seed>] "
-						   "[--verbose] "
-						   "[--verstep <verbose_step>] "
-						   "<doc_directory>\n";
+						   "[--verbose <step>] "
+						   "[--threshold <threshold>] "
+						   "<docs_directory>\n";
 
 	// Check if there are enough arguments
 	if (argc < 2) {
@@ -76,25 +76,25 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 			args.seed = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--verbose") == 0)
-			args.verbose = true;
+			args.verbose = (unsigned int) atoi(argv[++i]);
 
-		else if (strcmp(argv[i], "--verstep") == 0)
-			args.verbose_step = (unsigned int) atoi(argv[++i]);
+		else if (strcmp(argv[i], "--threshold") == 0)
+			args.threshold = (float) atof(argv[++i]);
 
 		else {
-			args.directory = (char *) argv[i];
+			args.directory = (char *) argv[i++];
 			break;
 		}
 
 	// Other arguments after directory
-	if (!args.directory) {
+	if (i != argc || !args.directory) {
 		printf(help_msg, argv[0]);
 		exit(1);
 	}
 
-	// Check number of documents and rows in bands
-	if (args.n_docs % args.n_band_rows != 0) {
-		printf("The number of rows in a band must be a divisor of the number of documents.\n");
+	// Check that bands fill the signature matrix
+	if (args.signature_size % args.n_band_rows != 0) {
+		printf("The number of rows in a band must be a divisor of the signature size.\n");
 		exit(1);
 	}
 
@@ -111,14 +111,14 @@ struct Arguments default_arguments() {
 	args.n_docs = 0;
 	args.n_band_rows = 4;
 	args.seed = 13;
-	args.verbose = false;
-	args.verbose_step = 25;
+	args.verbose = 25;
+	args.threshold = .1f;
 
 	return args;
 }
 
 void print_arguments(struct Arguments args) {
-	printf("-----\n");
+	printf("-----------------\n");
 	printf("[Using arguments]\n");
 	printf("- Directory: \"%s\"\n", args.directory);
 	printf("- Shingle size: %u\n", args.shingle_size);
@@ -126,9 +126,9 @@ void print_arguments(struct Arguments args) {
 	printf("- Number of documents: %u\n", args.n_docs);
 	printf("- Number of rows in bands: %u\n", args.n_band_rows);
 	printf("- Seed: %d\n", args.seed);
-	printf("- Verbose: %s\n", args.verbose ? "true" : "false");
-	printf("- Verbose step: %u\n", args.verbose_step);
-	printf("-----\n");
+	printf("- Verbose step: %u\n", args.verbose);
+	printf("- Threshold: %.2f\n", args.threshold);
+	printf("-----------------\n");
 }
 
 int main_min_hash(struct Arguments args) {
@@ -136,39 +136,51 @@ int main_min_hash(struct Arguments args) {
 	const int n_hashes = args.signature_size;
 	const int shingle_size = args.shingle_size;
 	const int n_docs = args.n_docs;
-
-	uint32_t signature_matrix[n_docs][n_hashes];
-	memset(signature_matrix, 0, n_docs * n_hashes * sizeof(uint32_t)); // Void signature matrix
-
 	const int n_band_rows = args.n_band_rows;
 	const int n_bands = n_hashes / n_band_rows;
-	uint32_t bands_matrix[n_docs][n_bands];
-	memset(bands_matrix, 0, n_docs * n_bands * sizeof(uint32_t)); // Void bands matrix
+
+	// Signature matrix - columns are documents, rows are hashes
+	uint32_t *signature_matrix;
+	size_t size_signature_matrix = n_docs * n_hashes * sizeof(uint32_t);
+
+	// Band matrix - columns are documents, rows are bands (hashed)
+	uint32_t *bands_matrix;
+	size_t size_band_matrix = n_docs * n_bands * sizeof(uint32_t);
+
+	// Print memory used by matrices (ceil approx.)
+	if (args.verbose) {
+		size_t mem_usage_kb = (size_signature_matrix + size_band_matrix) / 1000ULL + 1;
+		printf("Memory used by processed documents: %zu KB\n", mem_usage_kb);
+	}
+
+	// Allocate and void matrices
+	signature_matrix = malloc(size_signature_matrix);
+	bands_matrix = malloc(size_band_matrix);
+	memset(signature_matrix, 0, size_signature_matrix);
+	memset(bands_matrix, 0, size_band_matrix);
 
 	const int offset = 1;
 
 	// Compute signature matrix
 	for (int i = 0; i < n_docs; ++i) {
 
-		if (args.verbose && (i % args.verbose_step == 0 || i == n_docs - 1))
+		if (args.verbose && (i % args.verbose == 0 || i == n_docs - 1))
 			printf("Computing signature for doc %d\n", i + offset);
 
 		// Compute the path of the document file (they are numbered)
 		char *doc_filepath = (char *) malloc((strlen(args.directory) + 10) * sizeof(char));
 		sprintf(doc_filepath, "%s\\%d.txt", args.directory, i + offset);
 
-		// Compute signature hashes
-		for (int j = 0; j < n_hashes; ++j)
-			signature_matrix[i][j] = min_hash_shingle(doc_filepath, shingle_size, j * args.seed);
+		compute_document_signature(doc_filepath, shingle_size, signature_matrix + i * n_hashes, n_hashes, args.seed);
 
 		// Free file path memory
 		free(doc_filepath);
 	}
 
-	// Compute bands hashes
+	// Compute band matrix
 	for (int i = 0; i < n_docs; ++i) {
 
-		if (args.verbose && (i % args.verbose_step == 0 || i == n_docs - 1))
+		if (args.verbose && (i % args.verbose == 0 || i == n_docs - 1))
 			printf("Computing bands for doc %d\n", i + offset);
 
 		for (int j = 0; j < n_bands; ++j) {
@@ -176,9 +188,9 @@ int main_min_hash(struct Arguments args) {
 			uint32_t band_hash = 0;
 
 			for (int k = 0; k < n_band_rows; ++k)
-				band_hash ^= signature_matrix[i][j * n_band_rows + k];
+				band_hash ^= *(signature_matrix + i * n_hashes + j * n_band_rows + k);
 
-			bands_matrix[i][j] = band_hash;
+			*(bands_matrix + i * n_bands + j) = band_hash;
 		}
 	}
 
@@ -188,12 +200,18 @@ int main_min_hash(struct Arguments args) {
 	for (int i = 0; i < n_docs - 1; ++i)
 		for (int j = i + 1; j < n_docs; ++j) {
 
-			if (!is_candidate_pair(bands_matrix[i], bands_matrix[j], n_bands))
+			uint32_t *p_band1 = bands_matrix + i * n_bands;
+			uint32_t *p_band2 = bands_matrix + j * n_bands;
+
+			if (!is_candidate_pair(p_band1, p_band2, n_bands))
 				continue;
 
-			float similarity = signature_similarity(signature_matrix[i], signature_matrix[j], n_hashes);
-			printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);
+			uint32_t *p_signature1 = signature_matrix + i * n_hashes;
+			uint32_t *p_signature2 = signature_matrix + j * n_hashes;
 
+			float similarity = signature_similarity(p_signature1, p_signature2, n_hashes);
+			if (similarity >= args.threshold)
+				printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);
 		}
 
 	return 0;
@@ -232,4 +250,60 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
 	fclose(file);
 
 	return min_hash;
+}
+
+void compute_document_signature(
+		const char *filepath,
+		const int shingle_size,
+		uint32_t *signature,
+		const int signature_size,
+		const int seed
+) {
+
+	// Open file
+	FILE *file = fopen(filepath, "r");
+
+	// Check if file was opened
+	if (file == NULL) {
+		printf("Error opening file %s\n", filepath);
+		exit(2);
+	}
+
+	char *prev_words[shingle_size];
+	char *shingle;
+	uint32_t current_hash;
+
+	// Set all signature values to max
+	for (int i = 0; i < signature_size; i++) {
+		signature[i] = UINT32_MAX;
+	}
+
+	// Set to null all previous words
+	for (int i = 0; i < shingle_size; i++)
+		prev_words[i] = NULL;
+
+	// While shingles are read from file
+	while ((shingle = read_shingle_from_file(file, shingle_size, prev_words))) {
+
+		int shingle_len = strlen(shingle);
+
+		// Compute document signature
+		for (int i = 0; i < signature_size; ++i) {
+
+			// Compute hash and save if min
+			current_hash = murmur_hash(shingle, shingle_len, seed * i);
+			if (current_hash < signature[i])
+				signature[i] = current_hash;
+		}
+
+		// Free shingle memory
+		free(shingle);
+	}
+
+	// Free previous words memory
+	for (int i = 0; i < shingle_size; i++)
+		free(prev_words[i]);
+
+	// Close file
+	fclose(file);
 }

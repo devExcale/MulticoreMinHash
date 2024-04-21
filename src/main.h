@@ -33,4 +33,13 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
  */
 int main_min_hash(struct Arguments args);
 
+// TODO: documentation
+void compute_document_signature(
+		const char *filepath,
+		const int shingle_size,
+		uint32_t *signature,
+		const int signature_size,
+		const int seed
+);
+
 #endif //MULTICOREMINHASH_MAIN_H
