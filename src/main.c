@@ -151,7 +151,7 @@ int main_min_hash(struct Arguments args) {
 
 		// Compute the path of the document file (they are numbered)
 		char *doc_filepath = (char *) malloc((strlen(args.directory) + 10) * sizeof(char));
-		sprintf(doc_filepath, "%s\\%d.txt", args.directory, i + offset);
+		sprintf(doc_filepath, "%s/%d.txt", args.directory, i + offset);
 
 		// Write the signature of the i-th document in the i-th matrix row
 		compute_document_signature(doc_filepath, shingle_size, signature_matrix + i * n_hashes, n_hashes, args.seed);

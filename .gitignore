@@ -2,4 +2,5 @@
 /cmake-build-*/
 /.datasets/
 /obj/
+/minhash
 *.exe

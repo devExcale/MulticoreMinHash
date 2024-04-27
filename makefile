@@ -26,7 +26,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(OBJ_DIR) $(EXEC) $(EXEC).exe
+	rm -rf $(OBJ_DIR) $(EXEC)
 
 run:
 	./$(EXEC) $(arguments)
