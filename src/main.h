@@ -24,7 +24,10 @@ struct Arguments {
 	float threshold;
 };
 
-int main(const int argc, const char *argv[]);
+int main(int argc, char *argv[]);
+
+// TODO: documentation
+struct Arguments get_arguments(int my_rank, int comm_sz, int argc, char *argv[]);
 
 /**
  * Reads the arguments passed to the program and returns them in a dedicated struct.
@@ -37,7 +40,7 @@ int main(const int argc, const char *argv[]);
  * @param argv The arguments
  * @return A struct containing the parsed arguments
  */
-struct Arguments input_arguments(const int argc, const char *argv[]);
+struct Arguments input_arguments(int argc, char *argv[]);
 
 /**
  * Returns the default arguments used by the program.
@@ -66,10 +69,11 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
 /**
  * Performs the min_hash algorithm on multiple files with banding.
  *
+ * TODO: params
  * @param args Arguments for the program
  * @return exit code
  */
-int main_min_hash(struct Arguments args);
+int main_min_hash(int my_rank, int comm_sz, struct Arguments args);
 
 /**
  * Compute the signature of a document. <br>

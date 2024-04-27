@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -g -O3 -Wall
+CC = mpicc
+CFLAGS = -g -O3 -Wall -fopenmp -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -I/usr/lib/x86_64-linux-gnu/openmpi/include
 LDFLAGS =
 
 SRC_DIR = src
@@ -8,7 +8,7 @@ OBJ_DIR = obj
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 EXEC = minhash
-#processes = 2
+processes = 8
 arguments = --docs 1989 \
 --shingle 3 \
 --verbose 200 \
@@ -29,4 +29,4 @@ clean:
 	rm -rf $(OBJ_DIR) $(EXEC)
 
 run:
-	./$(EXEC) $(arguments)
+	mpiexec -n $(processes) --oversubscribe ./$(EXEC) $(arguments)
