@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include "txt_reader.h"
+
 #include "main.h"
+#include "structures.h"
+#include "io_interface.h"
 #include "utils.h"
 
 int main(const int argc, const char *argv[]) {
@@ -17,99 +18,6 @@ int main(const int argc, const char *argv[]) {
 	main_min_hash(args);
 
 	return 0;
-}
-
-struct Arguments input_arguments(const int argc, const char *argv[]) {
-
-	struct Arguments args = default_arguments();
-	const char *help_msg = "Usage: %s "
-						   "[--shingle <shingle_size>] "
-						   "[--signature <signature_size>] "
-						   "[--docs <n_docs>] "
-						   "[--bandrows <n_band_rows>] "
-						   "[--seed <seed>] "
-						   "[--verbose <step>] "
-						   "[--threshold <threshold>] "
-						   "<docs_directory>\n";
-
-	// Check if there are enough arguments
-	if (argc < 2) {
-		printf(help_msg, argv[0]);
-		exit(1);
-	}
-
-	int i;
-	for (i = 1; i < argc; i++)
-
-		if (strcmp(argv[i], "--shingle") == 0)
-			args.shingle_size = (unsigned int) atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--signature") == 0)
-			args.signature_size = (unsigned int) atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--docs") == 0)
-			args.n_docs = (unsigned int) atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--bandrows") == 0)
-			args.n_band_rows = (unsigned int) atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--seed") == 0)
-			args.seed = atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--verbose") == 0)
-			args.verbose = (unsigned int) atoi(argv[++i]);
-
-		else if (strcmp(argv[i], "--threshold") == 0)
-			args.threshold = (float) atof(argv[++i]);
-
-		else {
-			args.directory = (char *) argv[i++];
-			break;
-		}
-
-	// Other arguments after directory
-	if (i != argc || !args.directory) {
-		printf(help_msg, argv[0]);
-		exit(1);
-	}
-
-	// Check that bands fill the signature matrix
-	if (args.signature_size % args.n_band_rows != 0) {
-		printf("The number of rows in a band must be a divisor of the signature size.\n");
-		exit(1);
-	}
-
-	return args;
-}
-
-struct Arguments default_arguments() {
-
-	struct Arguments args;
-
-	args.directory = NULL;
-	args.shingle_size = 3;
-	args.signature_size = 100;
-	args.n_docs = 0;
-	args.n_band_rows = 4;
-	args.seed = 13;
-	args.verbose = 25;
-	args.threshold = .1f;
-
-	return args;
-}
-
-void print_arguments(struct Arguments args) {
-	printf("-----------------\n");
-	printf("[Using arguments]\n");
-	printf("- Directory: \"%s\"\n", args.directory);
-	printf("- Shingle size: %u\n", args.shingle_size);
-	printf("- Signature size: %u\n", args.signature_size);
-	printf("- Number of documents: %u\n", args.n_docs);
-	printf("- Number of rows in bands: %u\n", args.n_band_rows);
-	printf("- Seed: %d\n", args.seed);
-	printf("- Verbose step: %u\n", args.verbose);
-	printf("- Threshold: %.2f\n", args.threshold);
-	printf("-----------------\n");
 }
 
 int main_min_hash(struct Arguments args) {

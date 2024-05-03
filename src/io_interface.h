@@ -1,7 +1,36 @@
-#ifndef MULTICOREMINHASH_TEXT_READER_H
-#define MULTICOREMINHASH_TEXT_READER_H
+#ifndef MULTICOREMINHASH_IO_INTERFACE_H
+#define MULTICOREMINHASH_IO_INTERFACE_H
 
 #include <stdio.h>
+
+#include "structures.h"
+
+/**
+ * Reads the arguments passed to the program and returns them in a dedicated struct.
+ * If an argument is not provided, the default value is used.
+ * If the passed arguments are invalid, the program exits with a help message.
+ *
+ * @see default_arguments
+ *
+ * @param argc The number of arguments
+ * @param argv The arguments
+ * @return A struct containing the parsed arguments
+ */
+struct Arguments input_arguments(const int argc, const char *argv[]);
+
+/**
+ * Returns the default arguments used by the program.
+ *
+ * @return A struct containing the default arguments
+ */
+struct Arguments default_arguments();
+
+/**
+ * Print the given arguments.
+ *
+ * @param args The arguments to be printed
+ */
+void print_arguments(struct Arguments args);
 
 /**
  * Reads a word from an already opened p_file. <br>
@@ -26,4 +55,4 @@ char *read_word_from_file(FILE *p_file);
  */
 char *read_shingle_from_file(FILE *file, const unsigned int shingle_size, char **p_words);
 
-#endif //MULTICOREMINHASH_TEXT_READER_H
+#endif //MULTICOREMINHASH_IO_INTERFACE_H

@@ -1,4 +1,5 @@
 #include <ctype.h>
+
 #include "utils.h"
 
 uint32_t murmur_hash(const void* key, int len, uint32_t seed) {
