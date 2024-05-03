@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 	MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 
 	// Get arguments
-	struct Arguments args = get_arguments(my_rank, comm_sz, argc, argv);
+	struct Arguments args = input_arguments_mpi(my_rank, comm_sz, argc, argv);
 
 	if (args.verbose && my_rank == 0)
 		print_arguments(args);
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-struct Arguments get_arguments(int my_rank, int comm_sz, int argc, char *argv[]) {
+struct Arguments input_arguments_mpi(int my_rank, int comm_sz, int argc, char *argv[]) {
 
 	struct Arguments args;
 	int directory_len;

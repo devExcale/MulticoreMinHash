@@ -26,15 +26,24 @@ struct Arguments {
 
 int main(int argc, char *argv[]);
 
-// TODO: documentation
-struct Arguments get_arguments(int my_rank, int comm_sz, int argc, char *argv[]);
+/**
+ * Reads the ar
+ *
+ * @see input_arguments - underlying function
+ * @param my_rank
+ * @param comm_sz
+ * @param argc
+ * @param argv
+ * @return
+ */
+struct Arguments input_arguments_mpi(int my_rank, int comm_sz, int argc, char *argv[]);
 
 /**
  * Reads the arguments passed to the program and returns them in a dedicated struct.
  * If an argument is not provided, the default value is used.
  * If the passed arguments are invalid, the program exits with a help message.
  *
- * @see default_arguments
+ * @see default_arguments - default values
  *
  * @param argc The number of arguments
  * @param argv The arguments
@@ -69,7 +78,8 @@ uint32_t min_hash_shingle(const char *filename, const int shingle_size, const in
 /**
  * Performs the min_hash algorithm on multiple files with banding.
  *
- * TODO: params
+ * @param my_rank MPI rank of the current process
+ * @param comm_sz Number of processes in the MPI communicator
  * @param args Arguments for the program
  * @return exit code
  */
