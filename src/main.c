@@ -48,7 +48,7 @@ int main_min_hash(struct Arguments args) {
 	memset(signature_matrix, 0, size_signature_matrix);
 	memset(bands_matrix, 0, size_band_matrix);
 
-	const int offset = 1;
+	const int offset = (int) args.doc_offset;
 
 	// [Compute signature matrix]
 	// Loop over all documents

@@ -8,6 +8,7 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 
 	struct Arguments args = default_arguments();
 	const char *help_msg = "Usage: %s "
+						   "[--offset <doc_offset>]"
 						   "[--shingle <shingle_size>] "
 						   "[--signature <signature_size>] "
 						   "[--docs <n_docs>] "
@@ -26,7 +27,10 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 	int i;
 	for (i = 1; i < argc; i++)
 
-		if (strcmp(argv[i], "--shingle") == 0)
+		if (strcmp(argv[i], "--offset") == 0)
+			args.doc_offset = (unsigned int) atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--shingle") == 0)
 			args.shingle_size = (unsigned int) atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--signature") == 0)
