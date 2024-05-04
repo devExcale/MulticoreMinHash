@@ -90,6 +90,10 @@ int main_min_hash(struct Arguments args) {
 
 	printf("Starting comparison...\n");
 
+	// Open CSV file and write header
+	FILE *csv_file = fopen("results.csv", "w");
+	fprintf(csv_file, "doc1,doc2,similarity\n");
+
 	// Compare all pairs of documents
 	for (int i = 0; i < n_docs - 1; ++i)
 		for (int j = i + 1; j < n_docs; ++j) {
@@ -108,8 +112,13 @@ int main_min_hash(struct Arguments args) {
 			// Compute MinHash similarity and print if above threshold
 			float similarity = signature_similarity(p_signature1, p_signature2, n_hashes);
 			if (similarity >= args.threshold)
-				printf("[Docs %d - %d] Similarity MinHash: %.2f%%\n", i + offset, j + offset, 100.f * similarity);
+				fprintf(csv_file, "%d,%d,%.4f\n", i + offset, j + offset, similarity);
 		}
+
+	printf("Done.\n");
+
+	// Close CSV file
+	fclose(csv_file);
 
 	return 0;
 }

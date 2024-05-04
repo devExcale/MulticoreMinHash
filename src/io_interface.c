@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -76,6 +77,7 @@ struct Arguments default_arguments() {
 	struct Arguments args;
 
 	args.directory = NULL;
+	args.doc_offset = 0;
 	args.shingle_size = 3;
 	args.signature_size = 100;
 	args.n_docs = 0;
@@ -91,6 +93,7 @@ void print_arguments(struct Arguments args) {
 	printf("-----------------\n");
 	printf("[Using arguments]\n");
 	printf("- Directory: \"%s\"\n", args.directory);
+	printf("- Offset: %u\n", args.doc_offset);
 	printf("- Shingle size: %u\n", args.shingle_size);
 	printf("- Signature size: %u\n", args.signature_size);
 	printf("- Number of documents: %u\n", args.n_docs);
