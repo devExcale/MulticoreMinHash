@@ -57,21 +57,21 @@ void mh_main(struct Arguments args) {
 
 }
 
-void mh_allocate(struct Arguments args, uint32_t **signature_matrix, uint32_t **bands_matrix) {
+void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t **pp_bands_matrix) {
 
 	const int n_bands = (int) (args.signature_size / args.n_band_rows);
 
 	// Allocate matrices
-	*signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
-	*bands_matrix = calloc(args.n_docs * n_bands, sizeof(uint32_t));
+	*pp_signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
+	*pp_bands_matrix = calloc(args.n_docs * n_bands, sizeof(uint32_t));
 
 	// Void matrices
-	memset(*signature_matrix, 0, args.n_docs * args.signature_size * sizeof(uint32_t));
-	memset(*bands_matrix, 0, args.n_docs * n_bands * sizeof(uint32_t));
+	memset(*pp_signature_matrix, 0, args.n_docs * args.signature_size * sizeof(uint32_t));
+	memset(*pp_bands_matrix, 0, args.n_docs * n_bands * sizeof(uint32_t));
 
 }
 
-void mh_compute_signatures(struct Arguments args, uint32_t *signature_matrix) {
+void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) {
 
 	// Loop over all documents
 	for (int i = 0; i < args.n_docs; ++i) {
@@ -87,7 +87,7 @@ void mh_compute_signatures(struct Arguments args, uint32_t *signature_matrix) {
 		mh_document_signature(
 				doc_filepath,
 				(int) args.shingle_size,
-				signature_matrix + i * args.signature_size,
+				p_signature_matrix + i * args.signature_size,
 				(int) args.signature_size,
 				args.seed
 		);
@@ -154,7 +154,7 @@ void mh_document_signature(
 	fclose(file);
 }
 
-void mh_compute_bands(struct Arguments args, const uint32_t *signature_matrix, uint32_t *bands_matrix) {
+void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix, uint32_t *p_bands_matrix) {
 
 	const int n_bands = (int) (args.signature_size / args.n_band_rows);
 
@@ -167,18 +167,18 @@ void mh_compute_bands(struct Arguments args, const uint32_t *signature_matrix, u
 			// Compute the hash of the band
 			uint32_t band_hash = 0;
 			for (int k = 0; k < args.n_band_rows; ++k) {
-				band_hash ^= signature_matrix[i * args.signature_size + j * args.n_band_rows + k];
+				band_hash ^= p_signature_matrix[i * args.signature_size + j * args.n_band_rows + k];
 			}
 
 			// Save the band hash in the bands matrix
-			bands_matrix[i * n_bands + j] = band_hash;
+			p_bands_matrix[i * n_bands + j] = band_hash;
 		}
 
 	}
 
 }
 
-void mh_compare(struct Arguments args, uint32_t *signature_matrix, uint32_t *bands_matrix, FILE *csv) {
+void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p_bands_matrix, FILE *f_csv) {
 
 	const int n_bands = (int) (args.signature_size / args.n_band_rows);
 
@@ -187,21 +187,21 @@ void mh_compare(struct Arguments args, uint32_t *signature_matrix, uint32_t *ban
 		for (int j = i + 1; j < args.n_docs; ++j) {
 
 			// Pointers to the bands of the two documents
-			uint32_t *p_bands1 = bands_matrix + i * n_bands;
-			uint32_t *p_bands2 = bands_matrix + j * n_bands;
+			uint32_t *p_bands1 = p_bands_matrix + i * n_bands;
+			uint32_t *p_bands2 = p_bands_matrix + j * n_bands;
 
 			// Skip if not candidate pair
 			if (!is_candidate_pair(p_bands1, p_bands2, n_bands))
 				continue;
 
 			// Pointers to the signatures of the two documents
-			uint32_t *p_signature1 = signature_matrix + i * args.signature_size;
-			uint32_t *p_signature2 = signature_matrix + j * args.signature_size;
+			uint32_t *p_signature1 = p_signature_matrix + i * args.signature_size;
+			uint32_t *p_signature2 = p_signature_matrix + j * args.signature_size;
 
 			// Compute MinHash similarity and print if above threshold
 			float similarity = signature_similarity(p_signature1, p_signature2, args.signature_size);
 			if (similarity >= args.threshold)
-				fprintf(csv, "%d,%d,%.4f\n", i + args.doc_offset, j + args.doc_offset, similarity);
+				fprintf(f_csv, "%d,%d,%.4f\n", i + args.doc_offset, j + args.doc_offset, similarity);
 
 		}
 

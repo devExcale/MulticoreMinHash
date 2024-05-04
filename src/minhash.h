@@ -9,14 +9,32 @@
 
 #include "structures.h"
 
-// TODO: documentation
+/**
+ * Perform the MinHash algorithm on the given arguments.
+ * If verbose, progess will be printed on stdout.
+ * The algorithm's results will be written to a CSV file.
+ *
+ * @param args Algorithm's arguments
+ */
 void mh_main(struct Arguments args);
 
-// TODO: documentation
-void mh_allocate(struct Arguments args, uint32_t **signature_matrix, uint32_t **bands_matrix);
+/**
+ * Allocate memory for the signature and bands matrices.
+ * Memory must be freed by the caller after usage.
+ *
+ * @param args Algorithm's arguments
+ * @param pp_signature_matrix Address to the signature matrix's pointer
+ * @param pp_bands_matrix Address to the bands matrix's pointer
+ */
+void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t **pp_bands_matrix);
 
-// TODO: documentation
-void mh_compute_signatures(struct Arguments args, uint32_t *signature_matrix);
+/**
+ * Compute the signature matrix of all documents.
+ *
+ * @param args Algorithm's arguments
+ * @param p_signature_matrix Pointer to the signature matrix
+ */
+void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix);
 
 /**
  * Compute the signature of a document. <br>
@@ -37,10 +55,25 @@ void mh_document_signature(
 		const int seed
 );
 
-// TODO: documentation
-void mh_compute_bands(struct Arguments args, const uint32_t *signature_matrix, uint32_t *bands_matrix);
+/**
+ * Compute the bands matrix from the signature matrix.
+ *
+ * @param args Algorithm's arguments
+ * @param p_signature_matrix Pointer to the signature matrix
+ * @param p_bands_matrix Pointer to the bands matrix
+ */
+void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix, uint32_t *p_bands_matrix);
 
-// TODO: documentation
-void mh_compare(struct Arguments args, uint32_t *signature_matrix, uint32_t *bands_matrix, FILE *csv);
+/**
+ * Compare all document pairs and write candidate pairs to a CSV file.
+ * A candidate pair is a pair of documents whose at least one band is equal.
+ * The similarity score of a pair is computed by comparing the signatures of the two documents.
+ *
+ * @param args Algorithm's arguments
+ * @param p_signature_matrix Pointer to the signature matrix
+ * @param p_bands_matrix Pointer to the bands matrix
+ * @param f_csv Open CSV file where to write the results
+ */
+void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p_bands_matrix, FILE *f_csv);
 
 #endif //MULTICOREMINHASH_MINHASH_H
