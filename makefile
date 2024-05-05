@@ -1,8 +1,8 @@
 # Shell used by make
 SHELL = /bin/zsh
 # Compiler settings
-CC = gcc
-CFLAGS = -g -O3 -Wall
+CC = mpicc
+CFLAGS = -g -O3 -Wall -fopenmp -I/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi -I/usr/lib/x86_64-linux-gnu/openmpi/include
 LDFLAGS =
 
 # Source and compiled directories
@@ -15,7 +15,7 @@ OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 EXEC = minhash
 
 # Running settings
-processes?=1
+processes?=8
 dataset?=medical
 
 arguments_medical = --docs 1989 \
@@ -48,7 +48,7 @@ arguments_medpub = --docs 106330 \
 --threshold 0.4 \
 ".datasets/medpub"
 
-RUN_COMMAND = ./$(EXEC) $(arguments_$(dataset))
+RUN_COMMAND = mpiexec -n $(processes) --oversubscribe ./$(EXEC) $(arguments_$(dataset))
 
 # Compile targets
 $(EXEC): $(OBJS)
@@ -60,7 +60,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 # Remove compiled objects
 clean:
-	rm -rf $(OBJ_DIR) $(EXEC) *.csv
+	-rm -rf $(OBJ_DIR) $(EXEC) *.csv
 
 # Run the program
 run:
@@ -80,7 +80,7 @@ report:
 	for i in {1..$(processes)} ; do \
 		export TIMEFMT="$$i,%E,%U,%S,%P,%M" ; \
 		echo "Running with $$i processes" ; \
-		{ time ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> time_report.csv ; \
+		{ time mpiexec -n $$i --oversubscribe ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> time_report.csv ; \
 	done
 
 extract-medpub:

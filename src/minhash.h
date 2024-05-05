@@ -1,7 +1,3 @@
-//
-// Created by escac on 04/05/2024.
-//
-
 #ifndef MULTICOREMINHASH_MINHASH_H
 #define MULTICOREMINHASH_MINHASH_H
 
@@ -63,6 +59,15 @@ void mh_document_signature(
  * @param p_bands_matrix Pointer to the bands matrix
  */
 void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix, uint32_t *p_bands_matrix);
+
+/**
+ * Transfer the matrices from the other processes to the main process.
+ *
+ * @param args Algorithm's arguments
+ * @param p_signature_matrix Pointer to the signature matrix
+ * @param p_bands_matrix Pointer to the bands matrix
+ */
+void sync_mem_mpi(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p_bands_matrix);
 
 /**
  * Compare all document pairs and write candidate pairs to a CSV file.

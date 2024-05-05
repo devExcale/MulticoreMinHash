@@ -29,19 +29,19 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 	for (i = 1; i < argc; i++)
 
 		if (strcmp(argv[i], "--offset") == 0)
-			args.doc_offset = (unsigned int) atoi(argv[++i]);
+			args.doc_offset = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--shingle") == 0)
-			args.shingle_size = (unsigned int) atoi(argv[++i]);
+			args.shingle_size = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--signature") == 0)
-			args.signature_size = (unsigned int) atoi(argv[++i]);
+			args.signature_size = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--docs") == 0)
-			args.n_docs = (unsigned int) atoi(argv[++i]);
+			args.n_docs = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--bandrows") == 0)
-			args.n_band_rows = (unsigned int) atoi(argv[++i]);
+			args.n_band_rows = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--seed") == 0)
 			args.seed = atoi(argv[++i]);
@@ -69,6 +69,8 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 		exit(1);
 	}
 
+	args.n_bands = args.signature_size / args.n_band_rows;
+
 	return args;
 }
 
@@ -82,9 +84,15 @@ struct Arguments default_arguments() {
 	args.signature_size = 100;
 	args.n_docs = 0;
 	args.n_band_rows = 4;
+	args.n_bands = args.signature_size / args.n_band_rows;
 	args.seed = 13;
 	args.verbose = 25;
 	args.threshold = .1f;
+
+	// MPI default values
+	args.proc.my_rank = 0;
+	args.proc.comm_sz = 1;
+	args.proc.my_n_docs = args.n_docs;
 
 	return args;
 }
@@ -93,14 +101,16 @@ void print_arguments(struct Arguments args) {
 	printf("-----------------\n");
 	printf("[Using arguments]\n");
 	printf("- Directory: \"%s\"\n", args.directory);
-	printf("- Offset: %u\n", args.doc_offset);
+	printf("- Number of documents: %u\n", args.n_docs);
+	printf("- First document offset: %u\n", args.doc_offset);
 	printf("- Shingle size: %u\n", args.shingle_size);
 	printf("- Signature size: %u\n", args.signature_size);
-	printf("- Number of documents: %u\n", args.n_docs);
-	printf("- Number of rows in bands: %u\n", args.n_band_rows);
+	printf("- Number of rows per band: %u\n", args.n_band_rows);
+	printf("- Number of bands: %u\n", args.n_bands);
 	printf("- Seed: %d\n", args.seed);
 	printf("- Verbose step: %u\n", args.verbose);
 	printf("- Threshold: %.2f\n", args.threshold);
+	printf("- Comm Size: %d\n", args.proc.comm_sz);
 	printf("-----------------\n");
 }
 

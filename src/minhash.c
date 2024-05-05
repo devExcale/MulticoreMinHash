@@ -1,10 +1,7 @@
-//
-// Created by escac on 04/05/2024.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
+#include <mpi/mpi.h>
 
 #include "minhash.h"
 #include "io_interface.h"
@@ -17,37 +14,52 @@ void mh_main(struct Arguments args) {
 	uint32_t *signature_matrix;
 	uint32_t *bands_matrix;
 
-	if (args.verbose)
+	uint8_t verbose = args.verbose && args.proc.my_rank == 0;
+
+	if (verbose)
 		printf("Allocating memory...\n");
 
 	mh_allocate(args, &signature_matrix, &bands_matrix);
 
-	if (args.verbose)
+	if (verbose)
 		printf("Opening report file...\n");
 
 	// Open and write header to CSV file
 	FILE *csv_file = fopen("results.csv", "w");
 	fprintf(csv_file, "doc1,doc2,similarity\n");
 
-	if (args.verbose)
+	if (verbose)
 		printf("Computing signatures...\n");
 
 	// Compute the signatures of all documents
 	mh_compute_signatures(args, signature_matrix);
 
-	if (args.verbose)
+	if (verbose)
 		printf("Computing bands...\n");
 
 	// Reduce the signatures to bands to faster comparison
 	mh_compute_bands(args, signature_matrix, bands_matrix);
 
-	if (args.verbose)
+	if (verbose)
+		printf("Synchonizing memory...\n");
+
+	// Send other processes results to main process
+	sync_mem_mpi(args, signature_matrix, bands_matrix);
+
+	// End other processes
+	if (args.proc.my_rank != 0) {
+		free(signature_matrix);
+		free(bands_matrix);
+		return;
+	}
+
+	if (verbose)
 		printf("Comparing documents...\n");
 
 	// Compare all document pairs and write to CSV file
 	mh_compare(args, signature_matrix, bands_matrix, csv_file);
 
-	if (args.verbose)
+	if (verbose)
 		printf("Done.\n");
 
 	// Free memory and close files
@@ -59,29 +71,32 @@ void mh_main(struct Arguments args) {
 
 void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t **pp_bands_matrix) {
 
-	const int n_bands = (int) (args.signature_size / args.n_band_rows);
-
-	// Allocate matrices
-	*pp_signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
-	*pp_bands_matrix = calloc(args.n_docs * n_bands, sizeof(uint32_t));
-
-	// Void matrices
-	memset(*pp_signature_matrix, 0, args.n_docs * args.signature_size * sizeof(uint32_t));
-	memset(*pp_bands_matrix, 0, args.n_docs * n_bands * sizeof(uint32_t));
+	// Allocate matrices (calloc initializes to 0 all memory)
+	if (args.proc.my_rank == 0) {
+		// Allocate space for all documents
+		*pp_signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
+		*pp_bands_matrix = calloc(args.n_docs * args.n_bands, sizeof(uint32_t));
+	} else {
+		// Allocate space for the documents assigned to this process
+		*pp_signature_matrix = calloc(args.proc.my_n_docs * args.signature_size, sizeof(uint32_t));
+		*pp_bands_matrix = calloc(args.proc.my_n_docs * args.n_bands, sizeof(uint32_t));
+	}
 
 }
 
 void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) {
 
-	// Loop over all documents
-	for (int i = 0; i < args.n_docs; ++i) {
+	const int my_doc_offset = args.doc_offset + args.proc.my_rank * args.proc.my_n_docs;
 
-		if (args.verbose && (i % args.verbose == 0 || i == args.n_docs - 1))
-			printf("Computing signature for doc %d\n", i + args.doc_offset);
+	// Loop over all documents assigned to the current process
+	for (int i = 0; i < args.proc.my_n_docs; ++i) {
+
+		if (args.verbose && (i % args.verbose == 0))
+			printf("Computing signature for doc %d\n", i + my_doc_offset);
 
 		// Compute the path of the document file (they are numbered)
 		char *doc_filepath = (char *) malloc((strlen(args.directory) + 10) * sizeof(char));
-		sprintf(doc_filepath, "%s/%d.txt", args.directory, i + args.doc_offset);
+		sprintf(doc_filepath, "%s/%d.txt", args.directory, i + my_doc_offset);
 
 		// Write the signature of the i-th document in the i-th matrix row
 		mh_document_signature(
@@ -156,13 +171,11 @@ void mh_document_signature(
 
 void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix, uint32_t *p_bands_matrix) {
 
-	const int n_bands = (int) (args.signature_size / args.n_band_rows);
-
 	// Loop over all documents
-	for (int i = 0; i < args.n_docs; ++i) {
+	for (int i = 0; i < args.proc.my_n_docs; ++i) {
 
 		// Compute the bands of the i-th document
-		for (int j = 0; j < n_bands; ++j) {
+		for (int j = 0; j < args.n_bands; ++j) {
 
 			// Compute the hash of the band
 			uint32_t band_hash = 0;
@@ -171,10 +184,52 @@ void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix,
 			}
 
 			// Save the band hash in the bands matrix
-			p_bands_matrix[i * n_bands + j] = band_hash;
+			p_bands_matrix[i * args.n_bands + j] = band_hash;
 		}
 
 	}
+
+}
+
+void sync_mem_mpi(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p_bands_matrix) {
+
+	const int n_docs = args.n_docs;
+	const int size_sig = args.signature_size;
+	const int comm_sz = args.proc.comm_sz;
+	const int my_n_docs = args.proc.my_n_docs;
+
+	// Synchronize computed signatures and bands
+	if (args.proc.my_rank != 0) {
+		// Send signature matrix
+		MPI_Send((void *) p_signature_matrix, my_n_docs * size_sig, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
+		// Send bands matrix
+		MPI_Send((void *) p_bands_matrix, my_n_docs * args.n_bands, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
+	} else {
+		// Receive all documents from other processes
+		for (int i = 1; i < args.proc.comm_sz; ++i) {
+
+			if (args.verbose)
+				printf("[Rank %d] Waiting memory from rank %d\n", args.proc.my_rank, i);
+
+			// Number of documents to receive (my_n_docs of process i)
+			int recv_n_docs = n_docs / comm_sz + (n_docs % comm_sz != 0);
+			if (i == comm_sz - 1)
+				recv_n_docs = n_docs - i * recv_n_docs;
+
+			uint32_t *p_recv_signature_matrix = p_signature_matrix + i * my_n_docs * size_sig;
+			uint32_t *p_recv_bands_matrix = p_bands_matrix + i * my_n_docs * args.n_bands;
+
+			// Receive signature matrix
+			MPI_Recv((void *) p_recv_signature_matrix, recv_n_docs * size_sig,
+					 MPI_UNSIGNED, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			// Receive bands matrix
+			MPI_Recv((void *) p_recv_bands_matrix, recv_n_docs * size_sig,
+					 MPI_UNSIGNED, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		}
+	}
+
+	if (args.verbose)
+		printf("[Rank %d] Memory synchronized.\n", args.proc.my_rank);
 
 }
 
