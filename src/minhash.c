@@ -86,7 +86,8 @@ void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t
 
 void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) {
 
-	const int my_doc_offset = args.doc_offset + args.proc.my_rank * args.proc.my_n_docs;
+	const int general_offset = args.n_docs / args.proc.comm_sz + (args.n_docs % args.proc.comm_sz != 0);
+	const int my_doc_offset = args.doc_offset + args.proc.my_rank * general_offset;
 
 	// Loop over all documents assigned to the current process
 	for (int i = 0; i < args.proc.my_n_docs; ++i) {

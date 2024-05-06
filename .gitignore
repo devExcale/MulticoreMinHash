@@ -4,3 +4,5 @@
 /obj/
 /minhash
 *.exe
+/csv/
+*.csv

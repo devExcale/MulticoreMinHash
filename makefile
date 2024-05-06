@@ -17,11 +17,12 @@ EXEC = minhash
 # Running settings
 processes?=8
 dataset?=medical
+repeat?=1
 
 arguments_medical = --docs 1989 \
 --offset 1 \
 --shingle 2 \
---verbose 400 \
+--verbose 0 \
 --signature 300 \
 --bandrows 3 \
 --seed 31 \
@@ -31,7 +32,7 @@ arguments_medical = --docs 1989 \
 arguments_environment = --docs 29090 \
 --offset 1 \
 --shingle 4 \
---verbose 1000 \
+--verbose 0 \
 --signature 300 \
 --bandrows 3 \
 --seed 7 \
@@ -60,11 +61,13 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 # Remove compiled objects
 clean:
-	-rm -rf $(OBJ_DIR) $(EXEC) *.csv
+	-rm -rf $(OBJ_DIR) $(EXEC) csv
 
 # Run the program
 run:
+	mkdir -p csv
 	$(RUN_COMMAND)
+	-mv results.csv csv/results_$(dataset)_$(processes).csv
 
 debug:
 	gdb --args $(RUN_COMMAND)
@@ -76,11 +79,15 @@ time:
 # Run the program multiple time with different number of processes
 # and save the execution times in a csv file
 report:
-	echo "n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent,max_mem" > time_report.csv
-	for i in {1..$(processes)} ; do \
-		export TIMEFMT="$$i,%E,%U,%S,%P,%M" ; \
-		echo "Running with $$i processes" ; \
-		{ time mpiexec -n $$i --oversubscribe ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> time_report.csv ; \
+	mkdir -p csv
+	echo "dataset,n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent" > csv/time_$(dataset)_$(processes).csv
+	@for i in {1..$(processes)} ; do \
+		for _ in {1..$(repeat)} ; do \
+			export TIMEFMT="$(dataset),$$i,%E,%U,%S,%P" ; \
+			echo "Running with $$i processes" ; \
+			{ time mpiexec -n $$i --oversubscribe ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> csv/time_$(dataset)_$(processes).csv ; \
+			mv results.csv csv/results_$(dataset)_$$i.csv ; \
+		done ; \
 	done
 
 extract-medpub:
