@@ -2,9 +2,9 @@
 #define MULTICOREMINHASH_STRUCTURES_H
 
 struct MultiProc {
-	// MPI rank
+	// ID of the current process
 	int my_rank;
-	// MPI size
+	// Number of processes
 	int comm_sz;
 	// Number of documents assigned to the current process
 	int my_n_docs;
