@@ -32,12 +32,12 @@ repeat?=1
 
 arguments_medical = --docs 1989 \
 --offset 1 \
---shingle 2 \
+--shingle 3 \
 --verbose 0 \
 --signature 300 \
 --bandrows 3 \
---seed 31 \
---threshold 0.24 \
+--seed 13 \
+--threshold 0.0 \
 ".datasets/medical"
 
 arguments_environment = --docs 29090 \
@@ -53,11 +53,11 @@ arguments_environment = --docs 29090 \
 arguments_medpub = --docs 106330 \
 --offset 1 \
 --shingle 3 \
---verbose 1200 \
---signature 120 \
+--verbose 0 \
+--signature 200 \
 --bandrows 4 \
 --seed 11 \
---threshold 0.4 \
+--threshold 0.3 \
 ".datasets/medpub"
 
 RUN_OMP = ./$(EXEC) -n $(processes) $(arguments_$(dataset))
@@ -80,8 +80,8 @@ clean:
 
 # Run the program
 run:
-	echo "Running on $(whichmp) with $(processes) processes"
-	mkdir -p csv
+	@mkdir -p csv
+	@echo "Running on $(whichmp) with $(processes) processes"
 	$(RUN_$(whichmp))
 	-mv results.csv $(RESULTS_FILE)
 
@@ -99,20 +99,30 @@ report:
 	echo "dataset,lib,n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent" > $(TIME_FILE)
 	@for i in {1..$(processes)} ; do \
 		for _ in {1..$(repeat)} ; do \
-
+\
 			export TIMEFMT="$(dataset),$(whichmp),$$i,%E,%U,%S,%P" ; \
 			echo "Running on $(whichmp) with $$i processes" ; \
-
-			if [ "$(whichmp)" == "OMP" ]; then \
-				{ time ./$(EXEC_OMP) -n $$i $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
-			elif [ "$(whichmp)" == "MPI" ]; then \
-				{ time mpiexec -n $$i --oversubscribe ./$(EXEC_MPI) $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
+\
+			if [[ "$(whichmp)" == "OMP" ]]; then \
+				{ time ./$(EXEC) -n $$i $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
+			elif [[ "$(whichmp)" == "MPI" ]]; then \
+				{ time mpiexec -n $$i --oversubscribe ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
 			fi ; \
-
-			mv results.csv $(RESULTS_FILE) ; \
-
+\
+			results_file_i=$(RESULTS_FILE) ; \
+			mv results.csv $${results_file_i/$(processes).csv/$$i.csv} ; \
 		done ; \
 	done
+
+report-check:
+	@base_filename=$(RESULTS_FILE) ; \
+	base_filename=$${base_filename/$(processes).csv/} ; \
+	for i in {2..$(processes)} ; do \
+		cmp "$${base_filename}1.csv" "$${base_filename}$${i}.csv" ; \
+		if [ $$? -ne 0 ]; then \
+			break ; \
+		fi ; \
+	done ; \
 
 extract-medpub:
 	@echo "--- Exporting medpub dataset ---"

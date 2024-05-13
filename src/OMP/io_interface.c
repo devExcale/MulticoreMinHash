@@ -9,6 +9,7 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 
 	struct Arguments args = default_arguments();
 	const char *help_msg = "Usage: %s "
+						   "[-n <n_threads>]"
 						   "[--offset <doc_offset>]"
 						   "[--shingle <shingle_size>] "
 						   "[--signature <signature_size>] "
@@ -28,7 +29,10 @@ struct Arguments input_arguments(const int argc, const char *argv[]) {
 	int i;
 	for (i = 1; i < argc; i++)
 
-		if (strcmp(argv[i], "--offset") == 0)
+		if (strcmp(argv[i], "-n") == 0)
+			args.proc.comm_sz = atoi(argv[++i]);
+
+		else if (strcmp(argv[i], "--offset") == 0)
 			args.doc_offset = atoi(argv[++i]);
 
 		else if (strcmp(argv[i], "--shingle") == 0)

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
-#include <omp.h>
 
 #include "minhash.h"
 #include "io_interface.h"
@@ -39,12 +38,6 @@ void mh_main(struct Arguments args) {
 	mh_compute_bands(args, signature_matrix, bands_matrix);
 
 	if (args.verbose)
-		printf("Synchonizing memory...\n");
-
-	// Send other processes results to main process
-	sync_mem_mpi(args, signature_matrix, bands_matrix);
-
-	if (args.verbose)
 		printf("Comparing documents...\n");
 
 	// Compare all document pairs and write to CSV file
@@ -70,15 +63,17 @@ void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t
 
 void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) {
 
+	size_t filepath_len = strlen(args.directory) + 20UL;
+	char doc_filepath[filepath_len];
+
 	// Loop over all documents
-	#pragma omp parallel for
+	#pragma omp parallel for default(none) shared(args, p_signature_matrix) private(doc_filepath)
 	for (int i = 0; i < args.n_docs; ++i) {
 
 		if (args.verbose && (i % args.verbose == 0))
 			printf("Computing signature for doc %d\n", i + args.doc_offset);
 
 		// Compute the path of the document file (they are numbered)
-		char *doc_filepath = (char *) malloc((strlen(args.directory) + 10) * sizeof(char));
 		sprintf(doc_filepath, "%s/%d.txt", args.directory, i + args.doc_offset);
 
 		// Write the signature of the i-th document in the i-th matrix row
@@ -89,11 +84,7 @@ void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) 
 				(int) args.signature_size,
 				args.seed
 		);
-
-		// Free file path memory
-		free(doc_filepath);
 	}
-
 }
 
 void mh_document_signature(
@@ -137,6 +128,7 @@ void mh_document_signature(
 			// Hash shingle and save if min
 			current_hash = murmur_hash(shingle, shingle_len, seed * i);
 			if (current_hash < signature[i])
+					#pragma omp critical
 				signature[i] = current_hash;
 		}
 
@@ -155,8 +147,8 @@ void mh_document_signature(
 void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix, uint32_t *p_bands_matrix) {
 
 	// Loop over all documents
-	#pragma omp for
-	for (int i = 0; i < args.proc.my_n_docs; ++i) {
+	#pragma omp parallel for default(none) shared(args, p_signature_matrix, p_bands_matrix)
+	for (int i = 0; i < args.n_docs; ++i) {
 
 		// Compute the bands of the i-th document
 		for (int j = 0; j < args.n_bands; ++j) {
@@ -168,6 +160,7 @@ void mh_compute_bands(struct Arguments args, const uint32_t *p_signature_matrix,
 			}
 
 			// Save the band hash in the bands matrix
+			#pragma omp critical
 			p_bands_matrix[i * args.n_bands + j] = band_hash;
 		}
 
