@@ -37,7 +37,7 @@ arguments_medical = --docs 1989 \
 --signature 300 \
 --bandrows 3 \
 --seed 13 \
---threshold 0.0 \
+--threshold 0.10 \
 ".datasets/medical"
 
 arguments_environment = --docs 29090 \
@@ -97,7 +97,7 @@ time:
 report:
 	mkdir -p csv
 	echo "dataset,lib,n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent" > $(TIME_FILE)
-	@for i in {1..$(processes)} ; do \
+	@for i in {10..$(processes)} ; do \
 		for _ in {1..$(repeat)} ; do \
 \
 			export TIMEFMT="$(dataset),$(whichmp),$$i,%E,%U,%S,%P" ; \

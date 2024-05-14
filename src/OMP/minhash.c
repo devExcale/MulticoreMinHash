@@ -173,7 +173,8 @@ void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p
 	const int n_bands = (int) (args.signature_size / args.n_band_rows);
 
 	// Loop over all document pairs
-	for (int i = 0; i < args.n_docs - 1; ++i)
+	#pragma omp parallel for default(none) shared(args, p_signature_matrix, p_bands_matrix, f_csv, n_bands) schedule(dynamic)
+	for (int i = 0; i < args.n_docs - 1; ++i) {
 		for (int j = i + 1; j < args.n_docs; ++j) {
 
 			// Pointers to the bands of the two documents
@@ -190,9 +191,13 @@ void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p
 
 			// Compute MinHash similarity and print if above threshold
 			float similarity = signature_similarity(p_signature1, p_signature2, args.signature_size);
-			if (similarity >= args.threshold)
+
+			if (similarity >= args.threshold) {
+				#pragma omp critical
 				fprintf(f_csv, "%d,%d,%.4f\n", i + args.doc_offset, j + args.doc_offset, similarity);
+			}
 
 		}
+	}
 
 }
