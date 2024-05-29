@@ -92,6 +92,7 @@ struct Arguments default_arguments() {
 	// MPI default values
 	args.proc.my_rank = 0;
 	args.proc.comm_sz = 1;
+	args.proc.doc_disp = 0;
 	args.proc.my_n_docs = args.n_docs;
 
 	return args;
@@ -103,6 +104,7 @@ void print_arguments(struct Arguments args) {
 	printf("- Directory: \"%s\"\n", args.directory);
 	printf("- Number of documents: %u\n", args.n_docs);
 	printf("- First document offset: %u\n", args.doc_offset);
+	printf("- Document displacement: %u\n", args.proc.doc_disp);
 	printf("- Shingle size: %u\n", args.shingle_size);
 	printf("- Signature size: %u\n", args.signature_size);
 	printf("- Number of rows per band: %u\n", args.n_band_rows);

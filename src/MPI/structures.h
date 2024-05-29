@@ -6,6 +6,8 @@ struct MultiProc {
 	int my_rank;
 	// Number of processes
 	int comm_sz;
+	// Number of documents between a process and the next one
+	int doc_disp;
 	// Number of documents assigned to the current process
 	int my_n_docs;
 };

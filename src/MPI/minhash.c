@@ -25,8 +25,11 @@ void mh_main(struct Arguments args) {
 		printf("Opening report file...\n");
 
 	// Open and write header to CSV file
-	FILE *csv_file = fopen("results.csv", "w");
-	fprintf(csv_file, "doc1,doc2,similarity\n");
+	FILE *csv_file;
+	if (args.proc.my_rank == 0) {
+		csv_file = fopen("results.csv", "w");
+		fprintf(csv_file, "doc1,doc2,similarity\n");
+	}
 
 	if (verbose)
 		printf("Computing signatures...\n");
@@ -72,22 +75,14 @@ void mh_main(struct Arguments args) {
 void mh_allocate(struct Arguments args, uint32_t **pp_signature_matrix, uint32_t **pp_bands_matrix) {
 
 	// Allocate matrices (calloc initializes to 0 all memory)
-	if (args.proc.my_rank == 0) {
-		// Allocate space for all documents
-		*pp_signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
-		*pp_bands_matrix = calloc(args.n_docs * args.n_bands, sizeof(uint32_t));
-	} else {
-		// Allocate space for the documents assigned to this process
-		*pp_signature_matrix = calloc(args.proc.my_n_docs * args.signature_size, sizeof(uint32_t));
-		*pp_bands_matrix = calloc(args.proc.my_n_docs * args.n_bands, sizeof(uint32_t));
-	}
+	*pp_signature_matrix = calloc(args.n_docs * args.signature_size, sizeof(uint32_t));
+	*pp_bands_matrix = calloc(args.n_docs * args.n_bands, sizeof(uint32_t));
 
 }
 
 void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) {
 
-	const int general_offset = args.n_docs / args.proc.comm_sz + (args.n_docs % args.proc.comm_sz != 0);
-	const int my_doc_offset = args.doc_offset + args.proc.my_rank * general_offset;
+	const int my_doc_offset = args.doc_offset + args.proc.my_rank * args.proc.doc_disp;
 
 	size_t filepath_len = strlen(args.directory) + 20UL;
 	char doc_filepath[filepath_len];
@@ -95,8 +90,8 @@ void mh_compute_signatures(struct Arguments args, uint32_t *p_signature_matrix) 
 	// Loop over all documents assigned to the current process
 	for (int i = 0; i < args.proc.my_n_docs; ++i) {
 
-		if (args.verbose && (i % args.verbose == 0))
-			printf("Computing signature for doc %d\n", i + my_doc_offset);
+//		if (args.verbose && (i % args.verbose == 0))
+//			printf("[Rank %2d] Computing signature for doc %d\n", args.proc.my_rank, i + my_doc_offset);
 
 		// Compute the path of the document file (they are numbered)
 		sprintf(doc_filepath, "%s/%d.txt", args.directory, i + my_doc_offset);
@@ -202,31 +197,29 @@ void sync_mem_mpi(struct Arguments args, uint32_t *p_signature_matrix, uint32_t 
 	if (args.proc.my_rank != 0) {
 
 		if (args.verbose) {
-			printf("[Rank %d] Sending %d signature uint32_t\n", args.proc.my_rank, my_n_docs * size_sig);
-			printf("[Rank %d] Sending %d bands uint32_t\n", args.proc.my_rank, my_n_docs * args.n_bands);
+			printf("[Rank %2d] Sending %d signature uint32_t\n", args.proc.my_rank, my_n_docs * size_sig);
+			printf("[Rank %2d] Sending %d bands uint32_t\n", args.proc.my_rank, my_n_docs * args.n_bands);
 		}
 
-		// Send signature matrix
+		// Send signature and bands matrices
 		MPI_Send((void *) p_signature_matrix, my_n_docs * size_sig, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
-		// Send bands matrix
 		MPI_Send((void *) p_bands_matrix, my_n_docs * args.n_bands, MPI_UNSIGNED, 0, 0, MPI_COMM_WORLD);
 
 	} else {
-		// Receive all documents from other processes
+
+		// Receive all signatures and bands from other processes
 		for (int i = 1; i < args.proc.comm_sz; ++i) {
 
 			// Number of documents to receive (my_n_docs of process i)
-			int recv_n_docs = n_docs / comm_sz + (n_docs % comm_sz != 0);
-			if (i == comm_sz - 1)
-				recv_n_docs = n_docs - i * recv_n_docs;
+			int recv_n_docs = (i != comm_sz - 1) ? args.proc.doc_disp : n_docs - i * args.proc.doc_disp;
 
 			if (args.verbose) {
-				printf("[Rank 0] From %d receiving %d signature uint32_t\n", i, recv_n_docs * size_sig);
-				printf("[Rank 0] From %d receiving %d bands uint32_t\n", i, recv_n_docs * args.n_bands);
+				printf("[Rank  0] From %2d receiving %d signature uint32_t\n", i, recv_n_docs * size_sig);
+				printf("[Rank  0] From %2d receiving %d bands uint32_t\n", i, recv_n_docs * args.n_bands);
 			}
 
-			uint32_t *p_recv_signature_matrix = p_signature_matrix + i * my_n_docs * size_sig;
-			uint32_t *p_recv_bands_matrix = p_bands_matrix + i * my_n_docs * args.n_bands;
+			uint32_t *p_recv_signature_matrix = p_signature_matrix + i * args.proc.doc_disp * size_sig;
+			uint32_t *p_recv_bands_matrix = p_bands_matrix + i * args.proc.doc_disp * args.n_bands;
 
 			// Receive signature matrix
 			MPI_Recv((void *) p_recv_signature_matrix, recv_n_docs * size_sig,
@@ -235,10 +228,15 @@ void sync_mem_mpi(struct Arguments args, uint32_t *p_signature_matrix, uint32_t 
 			MPI_Recv((void *) p_recv_bands_matrix, recv_n_docs * args.n_bands,
 					 MPI_UNSIGNED, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
+
 	}
 
+	// Broadcast full signature and bands matrices
+	MPI_Bcast((void *) p_signature_matrix, n_docs * size_sig, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+	MPI_Bcast((void *) p_bands_matrix, n_docs * args.n_bands, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
 	if (args.verbose)
-		printf("[Rank %d] Memory synchronized.\n", args.proc.my_rank);
+		printf("[Rank %2d] Memory synchronized.\n", args.proc.my_rank);
 
 }
 

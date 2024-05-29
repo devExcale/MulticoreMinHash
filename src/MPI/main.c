@@ -57,15 +57,17 @@ struct Arguments input_arguments_mpi(const int argc, const char *argv[], const i
 	args.proc.comm_sz = comm_sz;
 
 	// my_n_docs: ceil(n_docs / n_procs) to other process and remainder to last process
-	args.proc.my_n_docs = args.n_docs / comm_sz + (args.n_docs % comm_sz != 0);
-	if (my_rank == comm_sz - 1)
-		args.proc.my_n_docs = args.n_docs - my_rank * args.proc.my_n_docs;
+	args.proc.doc_disp = args.n_docs / comm_sz + (args.n_docs % comm_sz != 0);
+	args.proc.my_n_docs = (my_rank != comm_sz - 1) ? args.proc.doc_disp : args.n_docs - my_rank * args.proc.doc_disp;
 
 	if (args.verbose && my_rank == 0)
 		print_arguments(args);
 
-	if (args.verbose)
-		printf("[Rank %d] my_n_docs: %d\n", my_rank, args.proc.my_n_docs);
+	if (args.verbose) {
+		int doc_start = my_rank * args.proc.doc_disp;
+		int doc_end = doc_start + args.proc.my_n_docs - 1;
+		printf("[Rank %2d] Range: %d - %d (%d)\n", my_rank, doc_start, doc_end, args.proc.my_n_docs);
+	}
 
 	return args;
 }
