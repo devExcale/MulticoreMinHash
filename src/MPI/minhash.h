@@ -1,6 +1,7 @@
 #ifndef MULTICOREMINHASH_MINHASH_H
 #define MULTICOREMINHASH_MINHASH_H
 
+#include <stdio.h>
 #include <stdint.h>
 
 #include "structures.h"
@@ -80,5 +81,20 @@ void sync_mem_mpi(struct Arguments args, uint32_t *p_signature_matrix, uint32_t 
  * @param f_csv Open CSV file where to write the results
  */
 void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p_bands_matrix, FILE *f_csv);
+
+/**
+ * Computes the range of document indices that the current process must compare as the final step of MinHash.
+ * The comparison parallelism is implemented only for the outer loop,
+ * meaning that the out loop can be divided among the processes using i_start (inclusive) and i_end (exclusive),
+ * but the inner loop must range from i_start + 1 to n_docs.
+ * The computation is done by the root process and then broadcasted to the other processes.
+ * Indices are computed by consecutively summing the number of couples compared in an outer loop;
+ * if the partial sum exceeds the average number of couples per process, the next index is assigned to the next process.
+ *
+ * @param args Algorithm's arguments
+ * @param p_i_start_inc Pointer to the start index (inclusive) assigned to the current process
+ * @param p_i_end_exc Pointer to the end index (exclusive) assigned to the current process
+ */
+void get_compare_indices_mpi(struct Arguments args, int *p_i_start_inc, int *p_i_end_exc);
 
 #endif //MULTICOREMINHASH_MINHASH_H

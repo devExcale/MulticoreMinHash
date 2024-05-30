@@ -25,10 +25,18 @@ void mh_main(struct Arguments args) {
 		printf("Opening report file...\n");
 
 	// Open and write header to CSV file
-	FILE *csv_file;
+	char my_csv_filename[20];
+	FILE *my_csv_file;
+
+	if (args.proc.my_rank == 0)
+		sprintf(my_csv_filename, "results.csv");
+	else
+		sprintf(my_csv_filename, "results_%d.csv", args.proc.my_rank);
+
+	my_csv_file = fopen(my_csv_filename, "w");
+
 	if (args.proc.my_rank == 0) {
-		csv_file = fopen("results.csv", "w");
-		fprintf(csv_file, "doc1,doc2,similarity\n");
+		fprintf(my_csv_file, "doc1,doc2,similarity\n");
 	}
 
 	if (verbose)
@@ -49,18 +57,11 @@ void mh_main(struct Arguments args) {
 	// Send other processes results to main process
 	sync_mem_mpi(args, signature_matrix, bands_matrix);
 
-	// End other processes
-	if (args.proc.my_rank != 0) {
-		free(signature_matrix);
-		free(bands_matrix);
-		return;
-	}
-
 	if (verbose)
 		printf("Comparing documents...\n");
 
 	// Compare all document pairs and write to CSV file
-	mh_compare(args, signature_matrix, bands_matrix, csv_file);
+	mh_compare(args, signature_matrix, bands_matrix, my_csv_file);
 
 	if (verbose)
 		printf("Done.\n");
@@ -68,7 +69,38 @@ void mh_main(struct Arguments args) {
 	// Free memory and close files
 	free(signature_matrix);
 	free(bands_matrix);
-	fclose(csv_file);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if (args.proc.my_rank != 0) {
+		fclose(my_csv_file);
+		return;
+	}
+
+	// Merge all CSV files
+	FILE *f_other_csv;
+	char other_csv_filename[24];
+
+	for (int i = 1; i < args.proc.comm_sz; ++i) {
+
+		sprintf(other_csv_filename, "results_%d.csv", i);
+		f_other_csv = fopen(other_csv_filename, "r");
+
+		if (f_other_csv == NULL) {
+			printf("Error opening file %s\n", other_csv_filename);
+			exit(2);
+		}
+
+		char line[1024];
+		while (fgets(line, 1024, f_other_csv) != NULL)
+			fprintf(my_csv_file, "%s", line);
+
+		fclose(f_other_csv);
+		remove(other_csv_filename);
+	}
+
+	// Close main CSV file
+	fclose(my_csv_file);
 
 }
 
@@ -244,8 +276,11 @@ void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p
 
 	const int n_bands = (int) (args.signature_size / args.n_band_rows);
 
+	int i_start, i_end;
+	get_compare_indices_mpi(args, &i_start, &i_end);
+
 	// Loop over all document pairs
-	for (int i = 0; i < args.n_docs - 1; ++i)
+	for (int i = i_start; i < i_end; ++i)
 		for (int j = i + 1; j < args.n_docs; ++j) {
 
 			// Pointers to the bands of the two documents
@@ -266,5 +301,58 @@ void mh_compare(struct Arguments args, uint32_t *p_signature_matrix, uint32_t *p
 				fprintf(f_csv, "%d,%d,%.4f\n", i + args.doc_offset, j + args.doc_offset, similarity);
 
 		}
+
+}
+
+void get_compare_indices_mpi(struct Arguments args, int *p_i_start_inc, int *p_i_end_exc) {
+
+	int comm_sz = args.proc.comm_sz;
+
+	// Sequential comparison if only one process
+	if (comm_sz == 1) {
+		*p_i_start_inc = 0;
+		*p_i_end_exc = args.n_docs;
+		return;
+	}
+
+	// Array holding the start index of each process
+	int indices[comm_sz];
+
+	// Let the main process compute the indices
+	if (args.proc.my_rank == 0) {
+
+		size_t n_docs = (size_t) args.n_docs;  // Overall # of documents
+		size_t n_couples = n_docs * (n_docs - 1) / 2UL;  // Total # of document pairs
+		size_t avg_n_couples = n_couples / (size_t) comm_sz;  // Average # of document pairs per process
+
+		int j = 0;
+		indices[j++] = 0;  // First process starts from 0
+
+		size_t partial_sum = 0;
+		for (int i = 0; i < args.n_docs - 1; ++i) {
+
+			// Document at index i can pair with the left ones on the right (n - (i + 1))
+			partial_sum += n_docs - i - 1;
+
+			// If current process compares more than the average,
+			// assign the next index to the next process
+			if (partial_sum >= avg_n_couples) {
+				partial_sum = 0;
+				indices[j++] = i + 1;
+			}
+		}
+
+		// Unasigned processes shouldn't compare anything
+		while (j < comm_sz)
+			indices[j++] = args.n_docs;
+
+	}
+
+	// Broadcast the indices to all processes
+	MPI_Bcast((void *) indices, comm_sz, MPI_INT, 0, MPI_COMM_WORLD);
+
+	// Assign the start and end indices to the current process
+	*p_i_start_inc = indices[args.proc.my_rank];
+	*p_i_end_exc = (args.proc.my_rank == comm_sz - 1) ? args.n_docs : indices[args.proc.my_rank + 1];
 
 }
