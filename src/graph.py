@@ -1,9 +1,40 @@
+import argparse
+
 import matplotlib.pyplot as plt
 import pandas
 
+parser = argparse.ArgumentParser(
+	description="Generate a graph with the execution times of the MPI/OMP MinHash implementations."
+)
+
+parser.add_argument(
+	"-p", "--processes",
+	required=True,
+	type=int,
+	help="Max number of processes in the csv file",
+)
+parser.add_argument(
+	"-d", "--dataset",
+	type=str,
+	required=True,
+	help="Name of the dataset used in the csv file",
+)
+parser.add_argument(
+	"in_csv_path",
+	type=str,
+	help="Path to the directory containing the CSV files (dot for current directory)",
+)
+parser.add_argument(
+	"out_png_path",
+	type=str,
+	default=None,
+	nargs="?",
+	help="Path to the directory where the PNG file will be saved (dot for current directory)",
+)
+
 
 def draw_graph(
-		data: pandas.DataFrame,
+		dists: dict[str, pandas.DataFrame],
 		x_label: str,
 		y_label: str,
 		title: str = None,
@@ -24,7 +55,8 @@ def draw_graph(
 	plt.figure()
 
 	# Plot the data
-	plt.plot(data[x_label], data[y_label])
+	for name, df in dists.items():
+		plt.plot(df[x_label], df[y_label], label=name)
 
 	# Add labels
 	plt.title(title)
@@ -41,23 +73,52 @@ def draw_graph(
 		plt.show()
 
 
-if __name__ == "__main__":
-	# Read data from a CSV file
-	csv_file = 'C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\csv\\time_environment_8.csv'
-	graph_file = 'C:\\Users\\escac\\Projects\\Academics\\MulticoreMinHash\\csv\\time_environment_8.png'
-	data = pandas.read_csv(csv_file, usecols=["n_processes", "time_elapsed"])
+def get_dataframe(csv_path: str) -> pandas.DataFrame:
+	"""
+	Reads a CSV file and returns its content as a DataFrame.
 
-	# Remove the last letter from "time_elapsed" column and convert it to float
-	data["time_elapsed"] = data["time_elapsed"].str[:-1].astype(float)
+	Args:
+	csv_path: Path to the CSV file.
+
+	Returns:
+	DataFrame containing the content of the CSV file.
+	"""
+
+	# Read the CSV file
+	df = pandas.read_csv(csv_path, usecols=["n_processes", "time_elapsed"])
+
+	# Remove the last letter from the "time_elapsed" column and convert it to float
+	df["time_elapsed"] = df["time_elapsed"].str[:-1].astype(float)
 
 	# Average the time for each n_processes
-	data = data.groupby("n_processes").mean().reset_index()
+	df = df.groupby("n_processes").mean().reset_index()
+
+	# Return the DataFrame
+	return df
+
+
+if __name__ == "__main__":
+	# Parse the command-line arguments
+	args = parser.parse_args()
+
+	# Read the CSV files
+	csv_paths = {
+		lib: f"{args.in_csv_path}/time_{lib}_{args.dataset}_{args.processes}.csv"
+		for lib in ["MPI", "OMP"]
+	}
+	data = {
+		lib: get_dataframe(csv_path)
+		for lib, csv_path in csv_paths.items()
+	}
+
+	# Compute save path
+	save_path = f"{args.out_png_path}/time_{args.dataset}_{args.processes}.png" if args.out_png_path else None
 
 	# Draw a graph
 	draw_graph(
-		data=data,
+		dists=data,
 		x_label="n_processes",
 		y_label="time_elapsed",
 		title="Execution time",
-		save_path=graph_file
+		save_path=save_path
 	)
