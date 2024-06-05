@@ -25,10 +25,15 @@ SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 EXEC = obj/minhash_$(whichmp)
 
-# Running settings
+## Running settings ##
+# Number of processes to run the program (or max number during report)
 processes?=8
+# Name of the dataset to run the algorithm on
 dataset?=medical
+# Number of times to repeat the execution during report
 repeat?=1
+# Starting number of processes during report
+pstart?=1
 
 arguments_medical = --docs 1989 \
 --offset 1 \
@@ -64,7 +69,7 @@ RUN_OMP = ./$(EXEC) -n $(processes) $(arguments_$(dataset))
 RUN_MPI = mpiexec -n $(processes) --oversubscribe ./$(EXEC) $(arguments_$(dataset))
 
 RESULTS_FILE = csv/minhash_$(whichmp)_$(dataset)_$(processes).csv
-TIME_FILE = csv/time_$(whichmp)_$(dataset)_$(processes).csv
+TIME_FILE = csv/time_$(whichmp)_$(dataset).csv
 
 # Compile targets
 $(EXEC): $(OBJS)
@@ -79,26 +84,30 @@ clean:
 	-rm -rf obj
 
 # Run the program
-run:
+run: exists-dataset
 	@mkdir -p csv
 	@echo "Running on $(whichmp) with $(processes) processes"
 	$(RUN_$(whichmp))
 	-mv results.csv $(RESULTS_FILE)
 
-debug:
+debug: exists-dataset
 	gdb --args $(RUN_$(whichmp))
 
 # Time the program
-time:
+time: exists-dataset
 	time $(RUN_$(whichmp))
 
 # Run the program multiple time with different number of processes
 # and save the execution times in a csv file
-report:
-	mkdir -p csv
-	echo "dataset,lib,n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent" > $(TIME_FILE)
-	@for i in {1..$(processes)} ; do \
-		for _ in {1..$(repeat)} ; do \
+report: exists-dataset
+	@echo "Report: $(whichmp) with range [$(pstart), $(processes)] x$(repeat)"
+	@mkdir -p csv
+	@if [[ ! -f $(TIME_FILE) ]]; then \
+  		echo "Creating $(TIME_FILE)" ; \
+		echo "dataset,lib,n_processes,time_elapsed,cpu_user,cpu_kernel,cpu_percent" > $(TIME_FILE) ; \
+	fi
+	@for i in {$(pstart)..$(processes)}; do \
+		for _ in {1..$(repeat)}; do \
 \
 			export TIMEFMT="$(dataset),$(whichmp),$$i,%E,%U,%S,%P" ; \
 			echo "Running on $(whichmp) with $$i processes" ; \
@@ -113,6 +122,12 @@ report:
 			mv results.csv $${results_file_i/$(processes).csv/$$i.csv} ; \
 		done ; \
 	done
+
+exists-dataset:
+	@if [[ ! -d .datasets/$(dataset) ]]; then \
+		echo "Dataset $(dataset) does not exist" ; \
+		exit 1 ; \
+	fi
 
 report-check:
 	@base_filename=$(RESULTS_FILE) ; \
