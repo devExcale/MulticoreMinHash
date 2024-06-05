@@ -139,6 +139,10 @@ report-check:
 		fi ; \
 	done ; \
 
+graph:
+	@echo "Generating graph for $(dataset)"
+	@python src/graph.py -d $(dataset) csv csv
+
 extract-medpub:
 	@echo "--- Exporting medpub dataset ---"
 	@cd .datasets && python extract_csv.py --offset 1 --threshold 600 --column "abstract" train.csv medpub

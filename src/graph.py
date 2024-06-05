@@ -1,19 +1,13 @@
 import argparse
+from typing import Dict
 
 import matplotlib.pyplot as plt
 import pandas
-from typing import Dict
 
 parser = argparse.ArgumentParser(
 	description="Generate a graph with the execution times of the MPI/OMP MinHash implementations."
 )
 
-parser.add_argument(
-	"-p", "--processes",
-	required=True,
-	type=int,
-	help="Max number of processes in the csv file",
-)
 parser.add_argument(
 	"-d", "--dataset",
 	type=str,
@@ -36,7 +30,6 @@ parser.add_argument(
 
 def draw_graph(
 		dists: Dict[str, pandas.DataFrame],
-
 		x_label: str,
 		y_label: str,
 		title: str = None,
@@ -62,7 +55,6 @@ def draw_graph(
 	# Plot the data
 	for name, df in dists.items():
 		plt.plot(df[x_label], df[y_label], label=name, marker='o', markersize=3)
-
 
 	# Add labels
 	plt.title(title)
@@ -115,7 +107,7 @@ if __name__ == "__main__":
 
 	# Read the CSV files
 	csv_paths = {
-		lib: f"{args.in_csv_path}/time_{lib}_{args.dataset}_{args.processes}.csv"
+		lib: f"{args.in_csv_path}/time_{lib}_{args.dataset}.csv"
 		for lib in ["MPI", "OMP"]
 	}
 	data = {
@@ -124,7 +116,7 @@ if __name__ == "__main__":
 	}
 
 	# Compute save path
-	save_path = f"{args.out_png_path}/time_{args.dataset}_{args.processes}.png" if args.out_png_path else None
+	save_path = f"{args.out_png_path}/time_{args.dataset}.svg" if args.out_png_path else None
 
 	# Draw a graph
 	draw_graph(
