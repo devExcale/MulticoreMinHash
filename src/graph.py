@@ -2,6 +2,7 @@ import argparse
 
 import matplotlib.pyplot as plt
 import pandas
+from typing import Dict
 
 parser = argparse.ArgumentParser(
 	description="Generate a graph with the execution times of the MPI/OMP MinHash implementations."
@@ -34,7 +35,8 @@ parser.add_argument(
 
 
 def draw_graph(
-		dists: dict[str, pandas.DataFrame],
+		dists: Dict[str, pandas.DataFrame],
+
 		x_label: str,
 		y_label: str,
 		title: str = None,
@@ -54,9 +56,13 @@ def draw_graph(
 	# Create a new figure
 	plt.figure()
 
+	# Add Style
+	plt.style.use('classic')
+
 	# Plot the data
 	for name, df in dists.items():
-		plt.plot(df[x_label], df[y_label], label=name)
+		plt.plot(df[x_label], df[y_label], label=name, marker='o', markersize=3)
+
 
 	# Add labels
 	plt.title(title)
@@ -65,6 +71,12 @@ def draw_graph(
 
 	# Increase the size of the plot
 	plt.gcf().set_size_inches(10, 5)
+
+	# Add legend
+	plt.legend()
+
+	# Add Grid
+	plt.grid()
 
 	# Save the plot
 	if save_path:
