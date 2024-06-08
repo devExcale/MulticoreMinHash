@@ -54,7 +54,12 @@ def draw_graph(
 
 	# Plot the data
 	for name, df in dists.items():
-		plt.plot(df[x_label], df[y_label], label=name, marker='o', markersize=3)
+		if len(df) > 1:
+			# Proper distribution, plot it
+			plt.plot(df[x_label], df[y_label], label=name, marker='o', markersize=3)
+		elif len(df) == 1:
+			# Single point, plot it as a line
+			plt.axline((0, df[y_label].values[0]), slope=0, label=name)
 
 	# Add labels
 	plt.title(title)
@@ -77,9 +82,10 @@ def draw_graph(
 		plt.show()
 
 
-def get_dataframe(csv_path: str) -> pandas.DataFrame:
+def get_time_dataframes(csv_path: str) -> Dict[str, pandas.DataFrame]:
 	"""
-	Reads a CSV file and returns its content as a DataFrame.
+	Reads a CSV time report file and returns its content as a dict {lib:DataFrame}.
+	The times are averaged for each n_processes.
 
 	Args:
 	csv_path: Path to the CSV file.
@@ -89,31 +95,30 @@ def get_dataframe(csv_path: str) -> pandas.DataFrame:
 	"""
 
 	# Read the CSV file
-	df = pandas.read_csv(csv_path, usecols=["n_processes", "time_elapsed"])
+	df = pandas.read_csv(csv_path, usecols=["lib", "n_processes", "time_elapsed"])
 
 	# Remove the last letter from the "time_elapsed" column and convert it to float
 	df["time_elapsed"] = df["time_elapsed"].str[:-1].astype(float)
 
 	# Average the time for each n_processes
-	df = df.groupby("n_processes").mean().reset_index()
+	df = df.groupby(["lib", "n_processes"]).mean().reset_index()
+
+	# Divide the data into separate DataFrames
+	dists = {
+		lib: group_df
+		for lib, group_df in df.groupby("lib")
+	}
 
 	# Return the DataFrame
-	return df
+	return dists
 
 
-if __name__ == "__main__":
+def main():
 	# Parse the command-line arguments
 	args = parser.parse_args()
 
 	# Read the CSV files
-	csv_paths = {
-		lib: f"{args.in_csv_path}/time_{lib}_{args.dataset}.csv"
-		for lib in ["MPI", "OMP"]
-	}
-	data = {
-		lib: get_dataframe(csv_path)
-		for lib, csv_path in csv_paths.items()
-	}
+	data = get_time_dataframes(f"{args.in_csv_path}/time_{args.dataset}.csv")
 
 	# Compute save path
 	save_path = f"{args.out_png_path}/time_{args.dataset}.svg" if args.out_png_path else None
@@ -123,6 +128,10 @@ if __name__ == "__main__":
 		dists=data,
 		x_label="n_processes",
 		y_label="time_elapsed",
-		title="Execution time",
+		title=f"Execution time ({args.dataset})",
 		save_path=save_path
 	)
+
+
+if __name__ == "__main__":
+	main()

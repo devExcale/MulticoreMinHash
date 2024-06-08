@@ -80,7 +80,7 @@ RUN_OMP = ./$(EXEC) -n $(processes) $(arguments_$(dataset))
 RUN_MPI = mpiexec -n $(processes) --oversubscribe ./$(EXEC) $(arguments_$(dataset))
 
 RESULTS_FILE = csv/minhash_$(whichmp)_$(dataset)_$(processes).csv
-TIME_FILE = csv/time_$(whichmp)_$(dataset).csv
+TIME_FILE = csv/time_$(dataset).csv
 
 # Compile targets
 $(EXEC): $(OBJS)
