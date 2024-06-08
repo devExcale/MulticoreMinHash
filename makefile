@@ -4,6 +4,9 @@ SHELL = /bin/zsh
 # Multiprocessing library name (MPI or OMP)
 whichmp?=MPI
 
+CC_NONE = gcc
+CFLAGS_NONE = -g -O3 -Wall -D__MP_NONE__
+
 # Compiler settings (OpenMP)
 CC_OMP = gcc
 CFLAGS_OMP = -g -O3 -Wall -fopenmp
@@ -19,6 +22,11 @@ CFLAGS = $(CFLAGS_$(whichmp))
 # Source and compiled directories
 SRC_DIR = src/$(whichmp)
 OBJ_DIR = obj/$(whichmp)
+
+# Use OMP sources if NONE is selected
+ifeq ($(whichmp),NONE)
+	SRC_DIR = src/OMP
+endif
 
 # Source and compiled objects
 SRCS = $(wildcard $(SRC_DIR)/*.c)
@@ -65,6 +73,7 @@ arguments_medpub = --docs 106330 \
 --threshold 0.3 \
 ".datasets/medpub"
 
+RUN_NONE = ./$(EXEC) -n 1 $(arguments_$(dataset))
 RUN_OMP = ./$(EXEC) -n $(processes) $(arguments_$(dataset))
 RUN_MPI = mpiexec -n $(processes) --oversubscribe ./$(EXEC) $(arguments_$(dataset))
 
@@ -112,7 +121,9 @@ report: exists-dataset
 			export TIMEFMT="$(dataset),$(whichmp),$$i,%E,%U,%S,%P" ; \
 			echo "Running on $(whichmp) with $$i processes" ; \
 \
-			if [[ "$(whichmp)" == "OMP" ]]; then \
+			if [[ "$(whichmp)" == "NONE" ]]; then \
+				{ time ./$(EXEC) -n 1 $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
+			elif [[ "$(whichmp)" == "OMP" ]]; then \
 				{ time ./$(EXEC) -n $$i $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \
 			elif [[ "$(whichmp)" == "MPI" ]]; then \
 				{ time mpiexec -n $$i --oversubscribe ./$(EXEC) $(arguments_$(dataset)) 2> /dev/null ; } 2>> $(TIME_FILE) ; \

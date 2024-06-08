@@ -1,4 +1,6 @@
+#ifndef __MP_NONE__
 #include <omp.h>
+#endif
 
 #include "main.h"
 #include "io_interface.h"
@@ -8,6 +10,9 @@ int main(int argc, char *argv[]) {
 
 	// Read arguments and share among all processes
 	struct Arguments args = input_arguments(argc, (const char **) argv);
+
+	// Ignore OpenMP instructions if compiling explicitly without multi-processing
+	#ifndef __MP_NONE__
 
 	// Set desired number of threads
 	omp_set_dynamic(0);
@@ -23,6 +28,8 @@ int main(int argc, char *argv[]) {
 		printf("Error setting number of threads: %d/%d\n", num_threads, args.proc.comm_sz);
 		return 7;
 	}
+
+	#endif
 
 	// Start the MinHash algorithm
 	mh_main(args);
