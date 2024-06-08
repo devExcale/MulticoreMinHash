@@ -42,6 +42,8 @@ dataset?=medical
 repeat?=1
 # Starting number of processes during report
 pstart?=1
+# Whether to save the algorithm results during report
+saveres?=0
 
 arguments_medical = --docs 1989 \
 --offset 1 \
@@ -130,7 +132,12 @@ report: exists-dataset
 			fi ; \
 \
 			results_file_i=$(RESULTS_FILE) ; \
-			mv results.csv $${results_file_i/$(processes).csv/$$i.csv} ; \
+			if [[ $(saveres) > 0 ]]; then \
+				mv results.csv $${results_file_i/$(processes).csv/$$i.csv} ; \
+			else \
+				rm results.csv ; \
+			fi ; \
+\
 		done ; \
 	done
 
